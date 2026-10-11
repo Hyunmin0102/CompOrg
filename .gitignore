@@ -2,3 +2,6 @@
 *.o
 *.s
 sim
+regmap
+regfile
+out.txt
