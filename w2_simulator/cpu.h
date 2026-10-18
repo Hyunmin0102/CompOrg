@@ -15,7 +15,7 @@ public:
     // imemWords / dmemWords: 명령어·데이터 메모리 크기 (워드 단위)
     Cpu(size_t imemWords, size_t dmemWords);
 
-    void loadProgram(const std::vector<uint32_t>& words); // imem_ 앞부분에 프로그램 적재
+    void loadProgram(const std::vector<uint32_t>& words); // fetch, decode... 등의 단계를 거치기 전, OS의 로더가 하는 일. 실행 파일을 메모리에 올림.
     void step();                       // fetch → decode → execute, 명령어 1개 완료
     void run(size_t maxInsts);         // done()까지 step() 반복, maxInsts 초과 시 throw
     bool done() const;                 // PC가 프로그램 끝을 넘었는가
@@ -33,10 +33,10 @@ private:
     size_t      memIndex(uint32_t addr, size_t memWords) const; // 바이트 주소 → 워드 인덱스 (정렬·범위 검사)
 
     std::array<uint32_t, 32> regs_;    // 크기 고정 → array
-    uint32_t                 pc_;
-    std::vector<uint32_t>    imem_;    // 실행 시 크기 결정 → vector
-    std::vector<uint32_t>    dmem_;    // 명령어/데이터 메모리 분리 (L9b 단일 사이클 데이터패스)
-    size_t                   programWords_; // 적재된 프로그램 길이 (종료 조건)
+    uint32_t                 pc_;      // pc 자체. 다음에 실행할 명령어의 주소
+    std::vector<uint32_t>    imem_;    // 명령어가 담긴 메모리 공간
+    std::vector<uint32_t>    dmem_;    // 데이터가 담긴 메모리 공간
+    size_t                   programWords_; // 적재된 프로그램 길이 (총 몇 개의 명령어가 있는지)
 };
 
 #endif // CPU_H

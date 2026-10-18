@@ -2,29 +2,29 @@
 
 #include <iostream>
 #include <stdexcept>
-
+#include <string>
+#include <sstream>
+#include <iomanip>
 // 스켈레톤 규칙
 //  - 반환값이 있는 함수의 `return 0;` 등은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
 //  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
 
-Cpu::Cpu(size_t imemWords, size_t dmemWords) {
-    // TODO: 멤버 초기화 리스트(member initializer list)로 모든 멤버를 초기화한다.
-    //       형태: Cpu(...) : imem_(imemWords, 0), dmem_(...), ... {}
-    //       - 초기화 리스트는 본문 { } 이 실행되기 "전에" 멤버를 만든다. 본문에서 대입하는 것과 무엇이 다른가?
-    //       - 멤버는 리스트에 적은 순서가 아니라 클래스에 "선언된 순서"대로 초기화된다 (-Wreorder 경고).
-    // TODO(생각해 볼 것): regs_를 0으로 초기화하지 않으면 어떻게 되는가?
-    //       - std::array<uint32_t, 32>는 지역 변수/멤버로 만들 때 원소를 자동으로 0으로 채우지 않는다.
-    //         그 값을 읽으면 무엇이 나오는가? (정의되지 않은 동작, undefined behavior)
-    //       - $zero 이외의 레지스터 초기값이 쓰레기면 sum1to10 결과가 실행할 때마다 달라질 수 있는가?
-    //       - pc_와 programWords_도 마찬가지다. regs_{} 와 regs_() 는 각각 어떻게 초기화하는가?
-    (void)imemWords;
-    (void)dmemWords;
+Cpu::Cpu(size_t imemWords, size_t dmemWords) : regs_{}, pc_(0), imem_(imemWords,0), dmem_(dmemWords,0), programWords_(0) {
 }
 
+// 프로그램이 실행되기 전, 실행될 프로그램을 imem_으로 가져오는 함수
 void Cpu::loadProgram(const std::vector<uint32_t>& words) {
-    // TODO: 프로그램이 imem_보다 크면 예외를 던진다.
-    // TODO: words를 imem_ 앞부분에 복사하고 programWords_, pc_를 설정한다.
-    (void)words;
+    if(words.size() > imem_.size())
+    {
+        throw std::out_of_range("program too large: " + std::to_string(words.size()) + "words (instruction memory: " + std::to_string(imem_.size()) + "words)");
+    }
+    // imem_[i] <- words[i], 주소 : i*4
+    for(size_t i = 0; i < words.size(); i++)
+    {
+        imem_[i] = words[i];
+    }
+    programWords_ = words.size();
+    pc_ = 0;
 }
 
 void Cpu::step() {
@@ -42,32 +42,31 @@ void Cpu::run(size_t maxInsts) {
     (void)maxInsts;
 }
 
+//프로그램이 끝났는지 확인하는 함수
 bool Cpu::done() const {
-    // TODO: PC가 프로그램 끝(programWords_ * 4)을 넘었는지 반환한다.
-    return true;
+    return (pc_ >= programWords_ * 4);
 }
 
 uint32_t Cpu::reg(int i) const {
-    // TODO: regs_에서 i번 레지스터를 반환한다. i가 범위 밖이면? .at()과 []의 차이를 떠올려 보자.
-    (void)i;
-    return 0;
+    return regs_.at(i);
 }
 
 uint32_t Cpu::pc() const {
-    // TODO: pc_를 반환한다.
-    return 0;
+    return pc_;
 }
 
+//loadWord : data memory로부터 값 읽어오는 함수
 uint32_t Cpu::loadWord(uint32_t addr) const {
     // TODO: memIndex()로 인덱스를 구해 dmem_에서 읽는다.
-    (void)addr;
-    return 0;
+    size_t index = memIndex(addr, dmem_.size());
+    return dmem_[index];
 }
 
+//storeWord : data memory에 값 저장하는 함수
 void Cpu::storeWord(uint32_t addr, uint32_t value) {
     // TODO: memIndex()로 인덱스를 구해 dmem_에 쓴다.
-    (void)addr;
-    (void)value;
+    size_t index = memIndex(addr, dmem_.size());
+    dmem_[index] = value;
 }
 
 void Cpu::dumpRegs() const {
@@ -76,16 +75,15 @@ void Cpu::dumpRegs() const {
     //       std::hex는 끈적(sticky)하다. 출력 후 std::dec로 되돌린다.
 }
 
+//instruction memory로부터 실행할 명령어를 읽어오기
 uint32_t Cpu::fetch() const {
-    // TODO: pc_를 워드 인덱스로 바꿔 imem_에서 명령어를 읽는다 (memIndex 재사용).
-    return 0;
+    size_t index = memIndex(pc_, imem_.size());
+    return imem_[index];
 }
 
+//명령어 받은 후 해당 명령어 decode함.
 DecodedInst Cpu::decodeInst(uint32_t raw) const {
-    // TODO: 전역 decode()를 호출해 반환한다.
-    //       W3에서 "직전 명령어가 lw이고 지금 명령어가 그 결과를 쓰는가" 검사를 끼워 넣을 자리다.
-    (void)raw;
-    return DecodedInst{};
+    return decode(raw);
 }
 
 void Cpu::execute(const DecodedInst& d) {
@@ -98,11 +96,22 @@ void Cpu::execute(const DecodedInst& d) {
     (void)d;
 }
 
-size_t Cpu::memIndex(uint32_t addr, size_t memWords) const {
-    // TODO: addr % 4 != 0 이면 정렬 오류(misaligned) 예외를 던진다.
-    // TODO: addr / 4 가 memWords 이상이면 범위 밖 예외를 던진다.
-    //       (.at()에 맡겨 std::out_of_range를 받는 방법과, 직접 검사해 메시지를 만드는 방법 비교)
-    (void)addr;
-    (void)memWords;
-    return 0;
+static std::string toHex(uint32_t value)
+{
+    std::ostringstream oss;
+    oss << "0x" << std::setw(8) << std::setfill('0') << std::hex << value ;
+    return oss.str();
+}
+
+//memIndex : Byte 주소를 이용해 몇 번째 워드인지 변환해주는 함수, Byte 주소인 addr 과 메모리 크기인 memWords를 이용.
+size_t Cpu::memIndex(uint32_t addr, size_t memWords) const { 
+    if(addr % 4 != 0)
+    {
+        throw std::invalid_argument("misaligned address: " + toHex(addr));
+    }
+    if(addr / 4 >= memWords)
+    {
+        throw std::out_of_range("out of range error: " + toHex(addr) + " (memory size: " + std::to_string(memWords * 4) + " bytes)");
+    }
+    return addr / 4;
 }
