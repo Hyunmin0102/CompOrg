@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -147,10 +148,195 @@ static void test_decoder() {
 
 
 // ─────────────────────────────────────────────────────────────
+// 예외 테스트 패턴
+//   assert는 "조건이 참인가"만 확인한다. "이 호출이 예외를 던져야 한다"를 확인하려면
+//   bool 변수 + try/catch를 쓴다.
+//     1) threw = false로 시작
+//     2) try 안에서 예외가 나야 하는 호출
+//     3) 기대한 타입의 예외를 catch하면 threw = true
+//     4) assert(threw) — 예외가 안 났으면 여기서 실패한다 (이 줄이 없으면 조용히 통과해 버린다)
+//   catch에 구체적인 타입을 쓰면 "맞는 종류의 예외인지"까지 확인된다.
+//   다른 타입이 던져지면 잡히지 않고 프로그램이 멈추므로 그것도 실패로 드러난다.
+//   예외 객체를 쓰지 않으므로 catch에 변수 이름을 붙이지 않는다 (붙이면 unused 경고).
+// ─────────────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────
+// 1단계: 생성자, reg(), pc()
+// ─────────────────────────────────────────────────────────────
+static void test_init() {
+    // [1] 새 Cpu의 레지스터는 모두 0, PC는 0
+    {
+        Cpu cpu(4, 4);
+        for (int i = 0; i < 32; ++i) {
+            assert(cpu.reg(i) == 0);
+        }
+        assert(cpu.pc() == 0);
+    }
+
+    // [2] reg(32): 범위 밖 → std::out_of_range (.at()이 던짐)
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.reg(32);
+        } catch (const std::out_of_range&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+
+    // [3] reg(-1): int -1이 size_t로 바뀌면 아주 큰 수 → 역시 std::out_of_range
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.reg(-1);
+        } catch (const std::out_of_range&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 2단계: loadWord(), storeWord()  (memIndex는 private이라 이 둘을 통해 간접 확인)
+//   데이터 메모리 4워드 = 16바이트 → 유효한 주소는 0, 4, 8, 12
+// ─────────────────────────────────────────────────────────────
+static void test_memory() {
+    // [1] 새 Cpu의 데이터 메모리는 0 (생성자 초기화 확인)
+    {
+        Cpu cpu(4, 4);
+        assert(cpu.loadWord(0) == 0);
+        assert(cpu.loadWord(12) == 0);
+    }
+
+    // [2] 쓴 값을 그대로 읽어 온다
+    {
+        Cpu cpu(4, 4);
+        cpu.storeWord(8, 123);
+        assert(cpu.loadWord(8) == 123);
+    }
+
+    // [3] 마지막 칸(주소 12)에 큰 값 — 경계값 + 32비트 전체 사용
+    {
+        Cpu cpu(4, 4);
+        cpu.storeWord(12, 0xFFFFFFFF);
+        assert(cpu.loadWord(12) == 0xFFFFFFFF);
+    }
+
+    // [4] 한 칸에 쓴 뒤 옆 칸은 그대로 0 — 엉뚱한 칸(인덱스 계산 실수)에 쓰지 않았는지
+    {
+        Cpu cpu(4, 4);
+        cpu.storeWord(4, 7);
+        assert(cpu.loadWord(0) == 0);
+        assert(cpu.loadWord(4) == 7);
+        assert(cpu.loadWord(8) == 0);
+    }
+
+    // [5] 주소 16: 정렬은 맞지만 범위 밖 (경계값) → std::out_of_range
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.loadWord(16);
+        } catch (const std::out_of_range&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+
+    // [6] 주소 0xFFFFFFFC: lw에서 0 + (-4)를 하면 나오는 주소 → std::out_of_range
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.loadWord(0xFFFFFFFC);
+        } catch (const std::out_of_range&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+
+    // [7] 주소 6: 4의 배수가 아님 → std::invalid_argument (읽기)
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.loadWord(6);
+        } catch (const std::invalid_argument&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+
+    // [8] 주소 2: 4의 배수가 아님 → std::invalid_argument (쓰기)
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.storeWord(2, 1);
+        } catch (const std::invalid_argument&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 3단계: loadProgram(), done()  (fetch/decodeInst는 private → 4단계 step() 테스트에서 확인)
+//   명령어 값은 아직 실행하지 않으므로 아무 값이나 된다. test_decoder의 값을 재사용.
+// ─────────────────────────────────────────────────────────────
+static void test_load() {
+    // [1] 3워드 적재 직후: PC는 첫 명령어(주소 0), 아직 끝나지 않음
+    {
+        Cpu cpu(4, 4);
+        cpu.loadProgram({0x22300005, 0x02328020, 0x8E130008});
+        assert(cpu.pc() == 0);
+        assert(!cpu.done());
+    }
+
+    // [2] 빈 프로그램: 실행할 게 없으므로 바로 끝
+    {
+        Cpu cpu(4, 4);
+        cpu.loadProgram({});
+        assert(cpu.done());
+    }
+
+    // [3] imem 크기(4워드)와 같은 프로그램: 딱 들어간다 (경계값, 예외 없음)
+    {
+        Cpu cpu(4, 4);
+        cpu.loadProgram({0x22300005, 0x02328020, 0x8E130008, 0xAFA8000C});
+        assert(cpu.pc() == 0);
+        assert(!cpu.done());
+    }
+
+    // [4] imem보다 1워드 큰 프로그램 → 예외
+    //     loadProgram()에서 던지는 타입(std::out_of_range)에 맞춰 catch한다.
+    //     예외 타입을 바꾸면 여기도 같이 바꿔야 한다.
+    {
+        Cpu cpu(4, 4);
+        bool threw = false;
+        try {
+            cpu.loadProgram({0x22300005, 0x02328020, 0x8E130008, 0xAFA8000C, 0x2108FFFF});
+        } catch (const std::out_of_range&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // 테스트 — 완료 기준: sum1to10 결과 55 (W3 이후 회귀 테스트)
 // ─────────────────────────────────────────────────────────────
 static void run_tests() {
     test_decoder();
+    test_init();
+    test_memory();
+    test_load();
 
     // TODO: sum1to10 테스트. programs/sum1to10.txt를 읽어 Cpu에서 실행하고, 결과가 55인지 assert한다.
     //       (결과를 어느 레지스터 / 메모리 주소에 둘지 먼저 정한다)
