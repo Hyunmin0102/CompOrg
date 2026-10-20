@@ -5,11 +5,33 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <array>
 // 스켈레톤 규칙
 //  - 반환값이 있는 함수의 `return 0;` 등은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
 //  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
 
-Cpu::Cpu(size_t imemWords, size_t dmemWords) : regs_{}, pc_(0), imem_(imemWords,0), dmem_(dmemWords,0), programWords_(0) {
+Cpu::Cpu(size_t imemWords, size_t dmemWords) : regs_{}, pc_(0), imem_(imemWords,0), dmem_(dmemWords,0), programWords_(0), trace_(false), instCount_(0) {
+}
+
+// MIPS 레지스터 이름 (ABI 이름). 인덱스 = 레지스터 번호.
+static const std::array<const char*, 32> REG_NAMES = {
+    "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3",   //  0 ~  7
+    "t0",   "t1", "t2", "t3", "t4", "t5", "t6", "t7",   //  8 ~ 15
+    "s0",   "s1", "s2", "s3", "s4", "s5", "s6", "s7",   // 16 ~ 23
+    "t8",   "t9", "k0", "k1", "gp", "sp", "fp", "ra"    // 24 ~ 31
+};
+
+static std::string toHex(uint32_t value)
+{
+    std::ostringstream oss;
+    oss << "0x" << std::setw(8) << std::setfill('0') << std::hex << value ;
+    return oss.str();
+}
+
+
+void Cpu::setTrace(bool on)
+{
+    trace_ = on;
 }
 
 // 프로그램이 실행되기 전, 실행될 프로그램을 imem_으로 가져오는 함수
@@ -27,19 +49,37 @@ void Cpu::loadProgram(const std::vector<uint32_t>& words) {
     pc_ = 0;
 }
 
+//명령어 한 사이클. 실제로 명령어를 fetch 해오고, decode하고, execute하는 함수. 디버깅을 위해 trace에 따라 명령어와 PC값을 출력할 지 여부를 결정한다.
 void Cpu::step() {
-    // TODO: fetch() → decodeInst() → execute() 순서로 호출한다.
-    // TODO: 실행 추적(trace) 출력. 실행할 명령어를 print(d)로 보여줄지 정한다.
-    //       - 항상 출력? 아니면 멤버 플래그(예: bool trace_)로 켜고 끄기?
-    //       - PC도 함께 출력하면 beq가 어디로 갔는지 확인하기 쉽다.
-    // TODO: $zero 불변식(invariant). regs_[0]은 항상 0. 이 규칙을 "여기 한 곳"에서 관리한다.
-    //       execute에서 rd/rt가 0인 경우를 매번 검사하는 것과 비교해 보자.
+    uint32_t inst = fetch();
+    DecodedInst decoded_inst = decodeInst(inst);
+    if(trace_)
+    {
+        std::cout << "[" << toHex(pc()) << "] " ;
+        print(decoded_inst);
+    }
+    execute(decoded_inst);
+    regs_[0] = 0;
+    instCount_ += 1;
 }
 
+size_t Cpu::instCount() const 
+{
+    return instCount_;
+}
+
+//프로그램이 종료되기 전까지 명령어 사이클(fetch, decode, ... 을 반복)
 void Cpu::run(size_t maxInsts) {
-    // TODO: done()이 될 때까지 step()을 반복한다.
-    // TODO: 실행한 명령어 수가 maxInsts를 넘으면 예외를 던진다 (무한 루프 방지).
-    (void)maxInsts;
+    while(!done()) 
+    {
+        if(instCount_ >= maxInsts)
+        {
+            std::ostringstream oss;
+            oss << "maxInsts: " << maxInsts << ", pc at there: " << toHex(pc_);
+            throw std::runtime_error(oss.str());
+        }
+        step();
+    }
 }
 
 //프로그램이 끝났는지 확인하는 함수
@@ -69,10 +109,15 @@ void Cpu::storeWord(uint32_t addr, uint32_t value) {
     dmem_[index] = value;
 }
 
+// 레지스터 32개를 "이름(번호)  16진수  10진수(부호 있음)" 형식으로 출력한다.
 void Cpu::dumpRegs() const {
-    // TODO: 32개 레지스터를 번호, 16진수, 10진수로 출력한다.
-    //       10진수는 부호 있는 값(int32_t)으로 볼지 부호 없는 값으로 볼지 정한다.
-    //       std::hex는 끈적(sticky)하다. 출력 후 std::dec로 되돌린다.
+    for (size_t i = 0; i < REG_NAMES.size(); i++)
+    {
+        std::cout << "$" << std::left << std::setw(4) << REG_NAMES[i] << std::right
+                  << " (" << std::setw(2) << i << ")  "
+                  << toHex(regs_[i]) << "  "
+                  << std::setw(11) << static_cast<int32_t>(regs_[i]) << "\n";
+    }
 }
 
 //instruction memory로부터 실행할 명령어를 읽어오기
@@ -87,23 +132,51 @@ DecodedInst Cpu::decodeInst(uint32_t raw) const {
 }
 
 void Cpu::execute(const DecodedInst& d) {
-    // TODO: d.opcode(R형이면 d.funct)로 분기해 add / addi / lw / sw / beq를 실행한다.
-    // TODO: 알 수 없는 opcode/funct면 예외를 던진다.
-    // TODO: PC 갱신은 execute 끝에서 한다. 예외가 나면 pc()가 문제 명령어를 가리키게 하기 위해서다.
-    // TODO(부호 섞기): lw/sw 주소 R[rs] + SignExt(imm), beq 목적지 PC+4 + (imm << 2)에서
-    //       uint32_t와 int32_t를 더하면 어떤 타입으로 변환되는가? 음수 imm일 때 결과가 맞는가?
-    //       음수를 왼쪽 시프트(<<)하는 것은 안전한가?
-    (void)d;
-}
-
-static std::string toHex(uint32_t value)
-{
-    std::ostringstream oss;
-    oss << "0x" << std::setw(8) << std::setfill('0') << std::hex << value ;
-    return oss.str();
+    uint32_t pc1 = pc_ + 4;
+    if(d.opcode == OP_R)
+    {
+        switch (d.funct)
+        {
+        case FUNCT_ADD:
+            {
+            uint32_t value = regs_[d.rs] + regs_[d.rt];
+            regs_[d.rd] = value;
+            break;
+            }
+        default:
+            throw std::invalid_argument("invalid funct: " + toHex(d.funct));
+        }
+    }
+    else if(d.opcode == OP_ADDI)
+    {
+        regs_[d.rt] = regs_[d.rs] + d.imm;
+    }
+    else if(d.opcode == OP_LW)
+    {
+        uint32_t address = regs_[d.rs] + d.imm;
+        regs_[d.rt] = loadWord(address);
+    }
+    else if(d.opcode == OP_SW)
+    {
+        uint32_t address = regs_[d.rs] + d.imm;
+        storeWord(address, regs_[d.rt]);
+    }
+    else if(d.opcode == OP_BEQ)
+    {
+        if(regs_[d.rs] == regs_[d.rt])
+        {
+            pc1=pc1 + (static_cast<uint32_t> (d.imm) << 2);
+        }
+    }
+    else
+    {
+        throw std::invalid_argument("invalid opcode: " + toHex(d.opcode));
+    }
+    pc_ = pc1;
 }
 
 //memIndex : Byte 주소를 이용해 몇 번째 워드인지 변환해주는 함수, Byte 주소인 addr 과 메모리 크기인 memWords를 이용.
+// -> Byte 주소와 memory index는 다르다! memory는 32bit짜리가 1씩 증가하며 vector에 저장되어 있기 때문.
 size_t Cpu::memIndex(uint32_t addr, size_t memWords) const { 
     if(addr % 4 != 0)
     {

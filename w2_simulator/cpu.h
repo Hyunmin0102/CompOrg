@@ -25,6 +25,8 @@ public:
     uint32_t loadWord(uint32_t addr) const;        // 데이터 메모리 읽기 (결과 확인·assert용)
     void     storeWord(uint32_t addr, uint32_t value); // 데이터 메모리 쓰기 (테스트 초기 데이터용)
     void     dumpRegs() const;         // 레지스터 덤프 (16진수/10진수)
+    void     setTrace(bool on);
+    size_t   instCount() const;
 
 private:
     uint32_t    fetch() const;                    // imem_에서 PC 위치의 명령어 읽기
@@ -37,6 +39,8 @@ private:
     std::vector<uint32_t>    imem_;    // 명령어가 담긴 메모리 공간
     std::vector<uint32_t>    dmem_;    // 데이터가 담긴 메모리 공간
     size_t                   programWords_; // 적재된 프로그램 길이 (총 몇 개의 명령어가 있는지)
+    bool                     trace_;
+    size_t                   instCount_;
 };
 
 #endif // CPU_H
