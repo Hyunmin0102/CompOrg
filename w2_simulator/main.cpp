@@ -14,14 +14,62 @@
 //   파일 형식: 한 줄에 16진수 명령어 하나, '#' 이후는 주석, 빈 줄 허용
 // ─────────────────────────────────────────────────────────────
 std::vector<uint32_t> loadProgramFile(const std::string& path) {
-    // TODO: std::ifstream으로 path를 연다. 열기 실패하면 예외를 던진다.
-    // TODO: std::getline으로 한 줄씩 읽는다.
-    //       - '#' 뒤를 잘라낸다 (std::string::find, substr)
-    //       - 공백만 남은 줄은 건너뛴다
-    //       - std::stoul(s, nullptr, 16)로 변환한다. 잘못된 입력이면 어떤 예외가 나는가?
-    // TODO: 몇 번째 줄에서 오류가 났는지 메시지에 넣으면 디버깅이 쉽다.
-    (void)path;
-    return {};
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("cannot open program file: " + path);
+    }
+
+    std::vector<uint32_t> program;
+    std::string line;
+    size_t lineNo = 0;
+    while (std::getline(file, line))
+    {
+        lineNo++;
+
+        // '#' 뒤는 주석. '#'이 없으면 find가 npos를 돌려주고, substr(0, npos)는 줄 전체다.
+        std::string code = line.substr(0, line.find('#'));
+
+        // 앞뒤 공백 제거. getline은 '\n'만 지우므로 Windows 줄 끝의 '\r'도 공백으로 취급한다.
+        // 공백이 아닌 글자가 없으면(빈 줄, 주석만 있는 줄, 들여쓴 주석) 건너뛴다.
+        const char* blanks = " \t\r";
+        size_t first = code.find_first_not_of(blanks);
+        if (first == std::string::npos)
+        {
+            continue;
+        }
+        size_t last = code.find_last_not_of(blanks);
+        code = code.substr(first, last - first + 1);
+
+        // 오류 메시지 앞에 붙일 위치 정보 (예: "programs/sum1to10.txt:5: ")
+        std::string where = path + ":" + std::to_string(lineNo) + ": ";
+
+        unsigned long value = 0;
+        size_t used = 0;   // stoul이 숫자로 읽은 글자 수
+        try
+        {
+            value = std::stoul(code, &used, 16);
+        }
+        catch (const std::logic_error&)   // invalid_argument("zzz"), out_of_range(64비트 초과) 둘 다
+        {
+            throw std::invalid_argument(where + "invalid hex '" + code + "'");
+        }
+
+        // stoul은 읽을 수 있는 데까지만 읽고 나머지는 말없이 무시한다 ("2008zz0A" → 0x2008).
+        // 다 읽지 못했으면 오타로 보고 예외를 던진다.
+        if (used != code.size())
+        {
+            throw std::invalid_argument(where + "invalid hex '" + code + "'");
+        }
+
+        // stoul의 반환 타입 unsigned long은 64비트 → 32비트 명령어 범위를 직접 검사한 뒤 변환한다.
+        if (value > 0xFFFFFFFF)
+        {
+            throw std::out_of_range(where + "value exceeds 32 bits '" + code + "'");
+        }
+        program.push_back(static_cast<uint32_t>(value));
+    }
+    return program;
 }
 
 
