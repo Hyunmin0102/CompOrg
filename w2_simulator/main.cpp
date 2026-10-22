@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -398,16 +399,62 @@ static void run_tests() {
 }
 
 
+// ─────────────────────────────────────────────────────────────
+// main: 테스트를 돌린 뒤, 인자로 받은 프로그램 파일을 실행하고 결과를 출력한다.
+//   사용법: ./sim <프로그램 파일>        (make run = ./sim programs/sum1to10.txt)
+// ─────────────────────────────────────────────────────────────
 int main(int argc, char* argv[]) {
     run_tests();
     std::cout << "all tests passed\n";
 
-    // TODO: argv[1]에서 프로그램 파일 경로를 받는다 (없으면 사용법 출력 후 종료).
-    // TODO: Cpu를 만들고 loadProgramFile() → loadProgram() → run(최대 명령어 수).
-    // TODO: try/catch로 예외를 잡아 메시지와 PC(cpu.pc())를 16진수로 출력하고 0이 아닌 값을 반환한다.
-    //       Cpu 객체를 try 블록 안에서 만들면 catch에서 cpu.pc()를 쓸 수 있는가? (변수 범위, scope)
-    // TODO: 실행 후 dumpRegs()와 결과 메모리 값을 출력한다.
-    (void)argc;
-    (void)argv;
+    // argc는 프로그램 이름까지 센다. "./sim"만 실행하면 argc == 1이고 argv[0] == "./sim"이다.
+    // 파일 경로가 없으면 사용법을 출력하고 0이 아닌 값을 반환한다 (0 = 정상 종료, 셸에서 echo $?로 확인).
+    if (argc < 2)
+    {
+        std::cerr << "usage: " << argv[0] << " <program file>\n";
+        return 1;
+    }
+
+    // 숫자를 코드에 바로 쓰지 않고 이름을 붙인다. 바꿀 때도 여기 한 곳만 고치면 된다.
+    constexpr size_t   IMEM_WORDS  = 256;    // 명령어 메모리 256워드 = 1KB
+    constexpr size_t   DMEM_WORDS  = 256;    // 데이터 메모리 256워드 = 1KB
+    constexpr size_t   MAX_INSTS   = 10000;  // 무한 루프 방지 한도 (sum1to10은 수십 개면 끝난다)
+    constexpr uint32_t RESULT_ADDR = 4;      // sum1to10이 sw로 결과를 저장하는 주소
+
+    // Cpu는 try 블록 "밖"에서 만든다.
+    // try { } 안에서 선언한 변수는 그 블록이 끝나면 사라지므로(scope), catch에서 cpu.pc()를 쓸 수 없다.
+    // 생성자는 vector 두 개를 만들 뿐이라 여기서 예외가 날 일은 사실상 없다.
+    Cpu cpu(IMEM_WORDS, DMEM_WORDS);
+    cpu.setTrace(true);   // 실행되는 명령어를 [PC] + 디코드 결과로 출력
+
+    try
+    {
+        // 파일 → vector<uint32_t> → 명령어 메모리. 형식 오류면 loadProgramFile이 줄 번호와 함께 던진다.
+        cpu.loadProgram(loadProgramFile(argv[1]));
+        // done()이 될 때까지 step() 반복. MAX_INSTS를 넘으면 runtime_error.
+        cpu.run(MAX_INSTS);
+    }
+    catch (const std::exception& e)
+    {
+        // 지금까지 던진 invalid_argument, out_of_range, runtime_error는 모두 std::exception의 자식이라
+        // 부모 타입 하나로 전부 잡힌다. what()은 throw할 때 넣은 메시지를 돌려준다.
+        //
+        // PC는 예외를 일으킨 명령어의 주소다. execute()가 PC를 맨 끝에서만 갱신하기 때문에
+        // 예외가 나면 PC가 그대로 남는다. (파일 읽기 단계에서 실패했다면 PC는 초기값 0)
+        // std::hex / std::setfill은 끈적(sticky)하므로 출력 뒤 std::dec / ' '로 되돌린다.
+        std::cerr << "error: " << e.what() << "\n"
+                  << "  PC = 0x" << std::hex << std::setw(8) << std::setfill('0') << cpu.pc()
+                  << std::dec << std::setfill(' ')
+                  << ", executed " << cpu.instCount() << " instructions\n";
+        return 1;
+    }
+
+    // 정상 종료: 레지스터 덤프 + 실행한 명령어 수 + 결과 메모리 값
+    std::cout << "\n=== registers ===\n";
+    cpu.dumpRegs();
+
+    std::cout << "\n=== result ===\n"
+              << "instructions executed: " << cpu.instCount() << "\n"
+              << "mem[" << RESULT_ADDR << "] = " << cpu.loadWord(RESULT_ADDR) << "\n";
     return 0;
 }
