@@ -379,6 +379,28 @@ static void test_load() {
 
 
 // ─────────────────────────────────────────────────────────────
+// W2 완료 기준: sum1to10 (W3 이후 회귀 테스트)
+//   programs/sum1to10.txt를 실제로 읽어 끝까지 실행하고 결과를 고정한다.
+//   프로그램 구조: $t0 = 10 → 0 으로 세면서 $t1에 더함 → sw $t1, -4($s0) / lw $t6, -4($s0)  ($s0 = 8)
+//   경로는 실행 위치 기준 상대 경로이므로 w2_simulator/ 에서 ./sim 을 실행해야 한다.
+// ─────────────────────────────────────────────────────────────
+static void test_sum1to10() {
+    Cpu cpu(256, 256);   // trace는 켜지 않는다 (테스트 출력이 지저분해지지 않게)
+    cpu.loadProgram(loadProgramFile("programs/sum1to10.txt"));
+    cpu.run(1000);       // 정상이면 46개. 무한 루프면 runtime_error로 테스트가 멈춘다
+
+    assert(cpu.done());                // 프로그램 끝까지 실행됨
+    assert(cpu.reg(9) == 55);          // $t1: 1 + 2 + ... + 10
+    assert(cpu.reg(8) == 0);           // $t0: 카운터가 0까지 내려와 반복문을 빠져나옴
+    assert(cpu.reg(16) == 8);          // $s0: sw/lw의 base
+    assert(cpu.loadWord(4) == 55);     // sw $t1, -4($s0) → 주소 8 + (-4) = 4 (음수 offset)
+    assert(cpu.reg(14) == 55);         // lw $t6, -4($s0) → 같은 주소에서 다시 읽음
+    assert(cpu.reg(0) == 0);           // $zero 불변식
+    assert(cpu.instCount() == 46);     // 2 + 반복 10번 × 4 + 마지막 beq 1 + 3
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // 테스트 — 완료 기준: sum1to10 결과 55 (W3 이후 회귀 테스트)
 // ─────────────────────────────────────────────────────────────
 static void run_tests() {
@@ -386,9 +408,8 @@ static void run_tests() {
     test_init();
     test_memory();
     test_load();
+    test_sum1to10();
 
-    // TODO: sum1to10 테스트. programs/sum1to10.txt를 읽어 Cpu에서 실행하고, 결과가 55인지 assert한다.
-    //       (결과를 어느 레지스터 / 메모리 주소에 둘지 먼저 정한다)
     // TODO: 개별 명령어 테스트. 작은 프로그램(vector)을 직접 만들어 확인한다.
     //       - add / addi (음수 즉시값 포함)
     //       - lw / sw 음수 offset: 예) sw $t0, -4($t1)
