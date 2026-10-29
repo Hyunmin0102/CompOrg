@@ -1,0 +1,10 @@
+# W3 예제 3: 의존 없음
+# 기대 stall 수는 직접 계산해서 main.cpp 테스트에 채운다.
+0x20080001  # [0x00] addi $t0, $zero, 1
+0x20090002  # [0x04] addi $t1, $zero, 2
+0x200A0003  # [0x08] addi $t2, $zero, 3
+0xAC000000  # [0x0c] sw   $zero, 0($zero)
+0x20000009  # [0x10] addi $zero, $zero, 9    # 목적지가 $zero
+0x00005820  # [0x14] add  $t3, $zero, $zero
+0x8C0C0004  # [0x18] lw   $t4, 4($zero)
+0x200D0006  # [0x1c] addi $t5, $zero, 6

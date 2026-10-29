@@ -1,0 +1,9 @@
+0x2008000A #addi $t0, $zero, 10
+0x20090000 #addi $t1, $zero, 0
+0x10080003 #beq $t0, $zero, 0x03  
+0x01284820 #add $t1, $t1, $t0
+0x2108FFFF #addi $t0, $t0, -1
+0x1000FFFC #beq $zero $zero 0xFFFC  
+0x20100008 #addi $s0, $zero, 8
+0xAE09FFFC #sw $t1, -4($s0)
+0x8E0EFFFC #lw $t6, -4($s0)

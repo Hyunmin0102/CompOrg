@@ -1,0 +1,9 @@
+# W3 예제 2: 거리 2 의존
+# 기대 stall 수는 직접 계산해서 main.cpp 테스트에 채운다.
+0x20080005  # [0x00] addi $t0, $zero, 5
+0x20090003  # [0x04] addi $t1, $zero, 3
+0x01005020  # [0x08] add  $t2, $t0, $zero
+0x8C0B0000  # [0x0c] lw   $t3, 0($zero)
+0x200C0001  # [0x10] addi $t4, $zero, 1
+0x01606820  # [0x14] add  $t5, $t3, $zero
+0xAC0C0008  # [0x18] sw   $t4, 8($zero)
