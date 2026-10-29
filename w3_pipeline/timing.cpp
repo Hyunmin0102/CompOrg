@@ -25,9 +25,19 @@ void printStats(std::ostream& os, const Stats& s, bool forwarding) {
 // 레지스터 사용 정보
 // ─────────────────────────────────────────────────────────────
 std::optional<uint8_t> destReg(const DecodedInst& d) {
-    // TODO(W3): add → rd, addi·lw → rt, sw·beq → 없음(std::nullopt).
-    //           목적지가 $zero(0)이면 의존을 만들지 않으므로 이것도 "없음"으로 볼 수 있다.
-    (void)d;
+    uint8_t dest_reg = 0; //zero를 따로 다뤄야 하는 상황이면 애매할수도
+    if((d.opcode == OP_R) && (d.funct == FUNCT_ADD))
+    {
+        dest_reg = d.rd;
+    }
+    else if((d.opcode == OP_ADDI) || (d.opcode == OP_LW))
+    {
+        dest_reg = d.rt;
+    }
+    if(dest_reg != 0)
+    {
+        return dest_reg;
+    }
     return std::nullopt;
 }
 
