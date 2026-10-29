@@ -44,8 +44,18 @@ std::optional<uint8_t> destReg(const DecodedInst& d) {
 bool readsReg(const DecodedInst& d, uint8_t r) {
     // TODO(W3): 명령어마다 실제로 읽는 소스만 비교한다.
     //           add·sw·beq는 rs와 rt, addi·lw는 rs만. (sw의 rt = 저장할 값도 소스)
-    (void)d;
-    (void)r;
+
+    switch(d.opcode)
+    {
+        case OP_R:
+            if(d.funct == FUNCT_ADD) return d.rs == r || d.rt == r;
+            break;
+        case OP_SW: 
+        case OP_BEQ: return d.rs == r || d.rt == r;
+        case OP_ADDI:
+        case OP_LW: return d.rs == r;
+        default: return false;
+    }
     return false;
 }
 
