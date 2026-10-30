@@ -1,7 +1,7 @@
 #include "timing.h"
 
 #include <iomanip>
-
+#include <algorithm>
 // 스켈레톤 규칙 (W2와 같음)
 //  - 반환값이 있는 함수의 `return ...;`은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
 //  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
@@ -79,17 +79,42 @@ uint64_t PipelineTimer::idEnterCycle() const {
     return stats_.insts + stats_.stalls + stats_.branchPenalty + 2;
 }
 
-uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
-    // TODO(W3): 앞 명령어 p(prev1_, prev2_)마다
-    //             p가 있고, p->dest가 있고, d가 *(p->dest)를 읽으면
-    //               실제 거리 = enter - p->issueCycle
-    //               필요 거리 = forwarding off → 3, on + p가 lw → 2, on + lw 아님 → 1
-    //               요구 stall = 실제 거리 < 필요 거리 ? 필요 거리 - 실제 거리 : 0   (부호 없는 뺄셈 주의)
-    //           두 요구 stall 중 큰 쪽을 돌려준다.
-    //           같은 계산이 두 번 나오면 생산자 하나를 받는 헬퍼로 빼도 된다.
-    (void)d;
-    (void)enter;
+uint64_t PipelineTimer::stallsFrom(const DecodedInst& d, uint64_t enter, const InstRecord& p) const {
+    if(p.dest.has_value() && readsReg(d, *(p.dest)))
+    {
+        uint64_t real_dist = enter > p.issueCycle ? enter - p.issueCycle : 0;  // 정상이면 항상 enter > p.issueCycle
+        uint64_t need_dist = 0;
+        if(!forwarding_)
+        {
+            need_dist = 3; // forwarding off 이면, 무조건 거리 3 이상 떨어져있어야함 필요
+        }
+        else if(p.isLoad)
+        {
+            need_dist = 2; // forwarding on이면서 load일 때 : 거리 2 이상 떨어져있어야함
+        }
+        else
+        {
+            need_dist = 1; // forwarding on이면서 load가 아닐 때 : 거리 1 이상 떨어져있어야함.
+        }
+        uint64_t req_stall = real_dist < need_dist ? need_dist - real_dist : 0;
+        return req_stall;
+    }
     return 0;
+}
+
+
+uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
+    uint64_t fromPrev1 = 0;
+    uint64_t fromPrev2 = 0;
+    if(prev1_.has_value())
+    {
+        fromPrev1 = stallsFrom(d, enter, *(prev1_));
+    }
+    if(prev2_.has_value())
+    {
+        fromPrev2 = stallsFrom(d, enter, *(prev2_));
+    }
+    return std::max(fromPrev1, fromPrev2);
 }
 
 PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d, uint64_t issueCycle) const {

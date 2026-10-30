@@ -80,6 +80,7 @@ private:
     //   enter = idEnterCycle()  →  stall = stallsFor(d, enter)  →  makeRecord(d, enter + stall)
     uint64_t   idEnterCycle() const;                                 // 이번 명령어가 stall 없이 ID에 들어갈 cycle
     uint64_t   stallsFor(const DecodedInst& d, uint64_t enter) const; // 이번 명령어가 ID에서 기다려야 하는 cycle 수
+    uint64_t   stallsFrom(const DecodedInst& d, uint64_t enter, const InstRecord& p) const;
     InstRecord makeRecord(const DecodedInst& d, uint64_t issueCycle) const; // 이번 명령어의 기록 (다음 명령어들이 읽음)
 
     bool  forwarding_;
