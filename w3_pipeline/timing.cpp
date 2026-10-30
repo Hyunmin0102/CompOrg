@@ -20,9 +20,18 @@ double Stats::cpi() const {
 void printStats(std::ostream& os, const Stats& s, bool forwarding) {
     // TODO(W3): forwarding on/off, 명령어 수, 총 cycle, stall(그중 load-use), taken beq, 분기 손실, CPI 출력.
     //           CPI는 std::fixed << std::setprecision(3). 둘 다 끈적(sticky)하니 출력 뒤 되돌릴지 생각해 본다.
-    (void)os;
-    (void)s;
-    (void)forwarding;
+    std::ios oldState(nullptr);
+    oldState.copyfmt(os);
+    os << std::fixed << std::setprecision(3);
+    os << "forwarding: " << (forwarding ? "on" : "off") << "\n";
+    os << "insts: " << s.insts << "\n";
+    os << "cycles: " << s.cycles << "\n";
+    os << "stalls: " << s.stalls << "\n";
+    os << "load-use stalls: " << s.loadUseStalls << "\n";
+    os << "taken branches: " << s.takenBranches << "\n";
+    os << "branch penalty: " << s.branchPenalty << "\n";
+    os << "CPI: " << s.cpi() << "\n";
+    os.copyfmt(oldState);
 }
 
 
