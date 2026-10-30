@@ -6,10 +6,15 @@
 //  - 반환값이 있는 함수의 `return ...;`은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
 //  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
 
+// 명령어가 없으면 0.0
 double Stats::cpi() const {
     // TODO(W3): cycles / insts. 정수끼리 나누면 소수점이 잘린다 → static_cast<double>.
     //           insts == 0 (빈 프로그램)이면 무엇을 돌려줄지도 정한다.
-    return 0.0;
+    if(insts == 0)
+    {
+        return 0.0;
+    }
+    return static_cast<double>(cycles)/insts;
 }
 
 void printStats(std::ostream& os, const Stats& s, bool forwarding) {
