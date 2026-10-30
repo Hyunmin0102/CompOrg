@@ -74,25 +74,38 @@ bool PipelineTimer::forwarding() const {
     return forwarding_;
 }
 
-PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d) const {
-    // TODO(W3): destReg()와 opcode로 InstRecord를 채운다.
-    (void)d;
-    return InstRecord{};
-}
-
-uint64_t PipelineTimer::stallsFor(const DecodedInst& d) const {
-    // TODO(W3): prev1_ / prev2_가 있으면(has_value) 그 dest를 d가 읽는지 본다.
-    //           forwarding_에 따라 거리별 stall 수가 다르다 (timing.h 맨 위 가정).
-    //           두 생산자 모두와 의존하면 stall을 더하는가, 큰 쪽만 쓰는가?
-    (void)d;
+uint64_t PipelineTimer::idEnterCycle() const {
+    // TODO(W3): stats_가 아직 이번 명령어를 반영하기 전의 값으로 계산한다.
+    //           insts + stalls + branchPenalty + 2  (2 = 첫 명령어의 IF 1 cycle + 이번 명령어 몫 1 cycle)
     return 0;
 }
 
+uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
+    // TODO(W3): 앞 명령어 p(prev1_, prev2_)마다
+    //             p가 있고, p->dest가 있고, d가 *(p->dest)를 읽으면
+    //               실제 거리 = enter - p->issueCycle
+    //               필요 거리 = forwarding off → 3, on + p가 lw → 2, on + lw 아님 → 1
+    //               요구 stall = 실제 거리 < 필요 거리 ? 필요 거리 - 실제 거리 : 0   (부호 없는 뺄셈 주의)
+    //           두 요구 stall 중 큰 쪽을 돌려준다.
+    //           같은 계산이 두 번 나오면 생산자 하나를 받는 헬퍼로 빼도 된다.
+    (void)d;
+    (void)enter;
+    return 0;
+}
+
+PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d, uint64_t issueCycle) const {
+    // TODO(W3): dest = destReg(d), isLoad = (d가 lw인가), issueCycle = 받은 값
+    (void)d;
+    (void)issueCycle;
+    return InstRecord{};
+}
+
 void PipelineTimer::onInst(const DecodedInst& d, bool branchTaken) {
-    // TODO(W3): 1) stallsFor(d)로 stall을 구해 stats_.stalls(필요하면 loadUseStalls)에 더한다
-    //           2) insts 증가, branchTaken이면 takenBranches·branchPenalty 증가
-    //           3) 기록을 한 칸씩 민다: prev2_ ← prev1_, prev1_ ← makeRecord(d)
-    //              (순서를 바꾸면 무엇이 사라지는지 생각해 본다)
+    // TODO(W3): ① enter = idEnterCycle()          (stats_를 갱신하기 전에!)
+    //           ② stall = stallsFor(d, enter)
+    //           ③ rec   = makeRecord(d, enter + stall)
+    //           ④ stats_ 갱신: stalls(필요하면 loadUseStalls), insts, branchTaken이면 takenBranches·branchPenalty
+    //           ⑤ prev2_ ← prev1_, prev1_ ← rec   (순서를 바꾸면 무엇이 사라지는지 생각해 본다)
     (void)d;
     (void)branchTaken;
 }

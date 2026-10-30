@@ -73,16 +73,20 @@ private:
     struct InstRecord {
         std::optional<uint8_t> dest;      // 앞 명령어가 쓰는 레지스터. 이 값을 readsReg로 넘김. sw·beq처럼 안 쓰면 std::nullopt
         bool                   isLoad = false;  // 앞 명령어가 lw인지 여부. forwarding on 일 때 load-use stall을 판단하기 위해 추가함.
-        uint64_t               issueCycle = 0;  // ID 단계에 들어간 cycle
+        uint64_t               issueCycle = 0;  // stall이 끝나고 ID를 떠난 cycle (다이어그램 cycle 번호와 같음)
     };
 
-    InstRecord makeRecord(const DecodedInst& d) const;
-    uint64_t   stallsFor(const DecodedInst& d) const;   // 이번 명령어가 기다려야 하는 cycle 수
+    // onInst()가 아래 순서로 부른다.
+    //   enter = idEnterCycle()  →  stall = stallsFor(d, enter)  →  makeRecord(d, enter + stall)
+    uint64_t   idEnterCycle() const;                                 // 이번 명령어가 stall 없이 ID에 들어갈 cycle
+    uint64_t   stallsFor(const DecodedInst& d, uint64_t enter) const; // 이번 명령어가 ID에서 기다려야 하는 cycle 수
+    InstRecord makeRecord(const DecodedInst& d, uint64_t issueCycle) const; // 이번 명령어의 기록 (다음 명령어들이 읽음)
 
     bool  forwarding_;
     Stats stats_;
 
-    // 직전 명령어(거리 1)와 그 앞(거리 2). 프로그램 시작 직후에는 "없음"
+    // 직전 명령어와 그 앞 명령어의 기록. 프로그램 시작 직후에는 "없음"
+    // 세 칸 앞부터는 실제 거리가 3 이상이라 stall을 만들지 않으므로 두 칸이면 충분하다
     std::optional<InstRecord> prev1_;
     std::optional<InstRecord> prev2_;
 };
