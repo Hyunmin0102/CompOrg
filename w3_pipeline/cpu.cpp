@@ -58,13 +58,18 @@ void Cpu::step() {
         std::cout << "[" << toHex(pc()) << "] " ;
         print(decoded_inst);
     }
-    // TODO(W3): 통계 훅 (1/2). beq가 taken인지 알려면 execute 전의 PC가 필요하다 → 여기서 저장
+    // TODO(W3): 통계 훅 (1/2). beq가 taken인지 알려면 execute 전의 PC가 필요하다 → 여기서 저장.
+    uint32_t pc_before = pc_;
     execute(decoded_inst);
     regs_[0] = 0;
     instCount_ += 1;
     // TODO(W3): 통계 훅 (2/2). timer_.onInst(...) 호출.
+    bool taken = (decoded_inst.opcode == OP_BEQ) && (pc_ != pc_before + 4); //offset 0인 beq는 not-taken으로 셈.
+    timer_.onInst(decoded_inst, taken);
     //           taken 여부: beq이고, 실행 후 PC가 (실행 전 PC + 4)가 아닌가
     //           예외가 나서 execute를 끝내지 못한 명령어는 세지 않는다 (이 위치라서 자동으로 그렇게 됨)
+
+
 }
 
 // W3: 타이밍 통계

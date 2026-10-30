@@ -42,9 +42,6 @@ std::optional<uint8_t> destReg(const DecodedInst& d) {
 }
 
 bool readsReg(const DecodedInst& d, uint8_t r) {
-    // TODO(W3): 명령어마다 실제로 읽는 소스만 비교한다.
-    //           add·sw·beq는 rs와 rt, addi·lw는 rs만. (sw의 rt = 저장할 값도 소스)
-
     switch(d.opcode)
     {
         case OP_R:
@@ -118,7 +115,6 @@ uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
 }
 
 PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d, uint64_t issueCycle) const {
-    // TODO(W3): dest = destReg(d), isLoad = (d가 lw인가), issueCycle = 받은 값
     std::optional<uint8_t> dest = destReg(d);
     bool isLoad = (d.opcode == OP_LW);
     uint64_t issue_cycle = issueCycle;
@@ -127,18 +123,25 @@ PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d, uint64
 }
 
 void PipelineTimer::onInst(const DecodedInst& d, bool branchTaken) {
-    // TODO(W3): ① enter = idEnterCycle()          (stats_를 갱신하기 전에!)
-    //           ② stall = stallsFor(d, enter)
-    //           ③ rec   = makeRecord(d, enter + stall)
-    //           ④ stats_ 갱신: stalls(forwarding on이면 loadUseStalls도), insts, branchTaken이면 takenBranches·branchPenalty
-    //           ⑤ prev2_ ← prev1_, prev1_ ← rec   (순서를 바꾸면 무엇이 사라지는지 생각해 본다)
-    (void)d;
-    (void)branchTaken;
+    uint64_t enter = idEnterCycle();
+    uint64_t stall = stallsFor(d, enter);
+    InstRecord rec = makeRecord(d, enter + stall);
+    stats_.stalls += stall;
+    stats_.insts += 1;
+    if(branchTaken)
+    {
+        stats_.takenBranches += 1;
+        stats_.branchPenalty += BRANCH_PENALTY;
+    }
+    stats_.cycles = stats_.insts + stats_.stalls + PIPELINE_FILL + stats_.branchPenalty;
+    if(forwarding_)
+    {
+        stats_.loadUseStalls += stall;
+    }
+    prev2_ = prev1_;
+    prev1_ = rec;
 }
 
 Stats PipelineTimer::stats() const {
-    // TODO(W3): stats_를 복사한 뒤 cycles를 채워 돌려준다.
-    //           PIPELINE_FILL을 여기서 더하면 stats()를 몇 번 불러도 결과가 같다.
-    //           명령어가 0개일 때 cycles는 몇이어야 하는가?
     return stats_;
 }
