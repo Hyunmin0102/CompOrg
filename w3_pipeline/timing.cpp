@@ -105,7 +105,7 @@ void PipelineTimer::onInst(const DecodedInst& d, bool branchTaken) {
     // TODO(W3): ① enter = idEnterCycle()          (stats_를 갱신하기 전에!)
     //           ② stall = stallsFor(d, enter)
     //           ③ rec   = makeRecord(d, enter + stall)
-    //           ④ stats_ 갱신: stalls(필요하면 loadUseStalls), insts, branchTaken이면 takenBranches·branchPenalty
+    //           ④ stats_ 갱신: stalls(forwarding on이면 loadUseStalls도), insts, branchTaken이면 takenBranches·branchPenalty
     //           ⑤ prev2_ ← prev1_, prev1_ ← rec   (순서를 바꾸면 무엇이 사라지는지 생각해 본다)
     (void)d;
     (void)branchTaken;

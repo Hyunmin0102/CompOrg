@@ -39,7 +39,7 @@ struct Stats {
     uint64_t insts         = 0;  // 완료한 명령어 수
     uint64_t cycles        = 0;  // 총 cycle = insts + PIPELINE_FILL + stalls + branchPenalty
     uint64_t stalls        = 0;  // 데이터 hazard로 생긴 stall cycle 전체
-    uint64_t loadUseStalls = 0;  // stalls 중 생산자가 lw인 것
+    uint64_t loadUseStalls = 0;  // forwarding on일 때만 센다 (on에서는 lw만 stall을 만들므로 = stalls). off면 0
     uint64_t takenBranches = 0;  // taken된 beq 수
     uint64_t branchPenalty = 0;  // 분기 flush로 잃은 cycle (stalls와 따로 센다)
 
