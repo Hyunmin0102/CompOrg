@@ -75,9 +75,8 @@ bool PipelineTimer::forwarding() const {
 }
 
 uint64_t PipelineTimer::idEnterCycle() const {
-    // TODO(W3): stats_가 아직 이번 명령어를 반영하기 전의 값으로 계산한다.
     //           insts + stalls + branchPenalty + 2  (2 = 첫 명령어의 IF 1 cycle + 이번 명령어 몫 1 cycle)
-    return 0;
+    return stats_.insts + stats_.stalls + stats_.branchPenalty + 2;
 }
 
 uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
@@ -95,9 +94,11 @@ uint64_t PipelineTimer::stallsFor(const DecodedInst& d, uint64_t enter) const {
 
 PipelineTimer::InstRecord PipelineTimer::makeRecord(const DecodedInst& d, uint64_t issueCycle) const {
     // TODO(W3): dest = destReg(d), isLoad = (d가 lw인가), issueCycle = 받은 값
-    (void)d;
-    (void)issueCycle;
-    return InstRecord{};
+    std::optional<uint8_t> dest = destReg(d);
+    bool isLoad = (d.opcode == OP_LW);
+    uint64_t issue_cycle = issueCycle;
+    InstRecord inst = InstRecord{dest, isLoad, issue_cycle};
+    return inst;
 }
 
 void PipelineTimer::onInst(const DecodedInst& d, bool branchTaken) {
