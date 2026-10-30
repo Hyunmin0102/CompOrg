@@ -71,10 +71,9 @@ public:
 private:
     // 앞서 실행된 명령어에서 hazard 판정에 필요한 정보만 남긴 기록
     struct InstRecord {
-        std::optional<uint8_t> dest;      // 쓰는 레지스터. sw·beq처럼 안 쓰면 std::nullopt
-        bool                   isLoad = false;
-        // TODO(W3): 거리를 cycle 기준으로 재려면 "이 명령어가 언제 들어갔는가"를 알아야 한다.
-        //           어떤 필드(타입은 uint64_t?)가 필요할지 정해서 추가한다
+        std::optional<uint8_t> dest;      // 앞 명령어가 쓰는 레지스터. 이 값을 readsReg로 넘김. sw·beq처럼 안 쓰면 std::nullopt
+        bool                   isLoad = false;  // 앞 명령어가 lw인지 여부. forwarding on 일 때 load-use stall을 판단하기 위해 추가함.
+        uint64_t               issueCycle = 0;  // ID 단계에 들어간 cycle
     };
 
     InstRecord makeRecord(const DecodedInst& d) const;
