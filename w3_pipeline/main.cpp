@@ -419,19 +419,98 @@ static void test_pipeline() {
     //           insts, stalls, loadUseStalls, takenBranches, branchPenalty, cycles를 모두 고정한다.
     //
     // [1] programs/loaduse.txt
-    //   Stats on  = runForStats("programs/loaduse.txt", true);
-    //   assert(on.insts  == ?);
-    //   assert(on.stalls == ?);
-    //   assert(on.cycles == ?);
-    //   Stats off = runForStats("programs/loaduse.txt", false);
-    //   ...
-    //
+    {
+        Stats on  = runForStats("programs/loaduse.txt", true);
+        assert(on.insts  == 10);
+        assert(on.stalls == 3);
+        assert(on.cycles == 17);
+        assert(on.loadUseStalls == 3);
+        assert(on.takenBranches == 0);
+        assert(on.branchPenalty == 0);
+
+        Stats off = runForStats("programs/loaduse.txt", false);
+        assert(off.insts  == 10);
+        assert(off.stalls == 10);
+        assert(off.cycles == 24);
+        assert(off.loadUseStalls == 0);
+        assert(off.takenBranches == 0);
+        assert(off.branchPenalty == 0);
+    }
+
     // [2] programs/dist2.txt
+    {
+        Stats on  = runForStats("programs/dist2.txt", true);
+        assert(on.insts  == 7);
+        assert(on.stalls == 0);
+        assert(on.cycles == 11);
+        assert(on.loadUseStalls == 0);
+        assert(on.takenBranches == 0);
+        assert(on.branchPenalty == 0);
+
+        Stats off = runForStats("programs/dist2.txt", false);
+        assert(off.insts  == 7);
+        assert(off.stalls == 2);
+        assert(off.cycles == 13);
+        assert(off.loadUseStalls == 0);
+        assert(off.takenBranches == 0);
+        assert(off.branchPenalty == 0);
+    }
     // [3] programs/nodep.txt
+    {
+        Stats on  = runForStats("programs/nodep.txt", true);
+        assert(on.insts  == 8);
+        assert(on.stalls == 0);
+        assert(on.cycles == 12);
+        assert(on.loadUseStalls == 0);
+        assert(on.takenBranches == 0);
+        assert(on.branchPenalty == 0);
+
+        Stats off = runForStats("programs/nodep.txt", false);
+        assert(off.insts  == 8);
+        assert(off.stalls == 0);
+        assert(off.cycles == 12);
+        assert(off.loadUseStalls == 0);
+        assert(off.takenBranches == 0);
+        assert(off.branchPenalty == 0);
+    }
     // [4] programs/sum1to10.txt — beq taken/flush가 들어 있는 유일한 예제
-    //
+    {
+        Stats on  = runForStats("programs/sum1to10.txt", true);
+        assert(on.insts  == 46);
+        assert(on.stalls == 0);
+        assert(on.cycles == 83);
+        assert(on.loadUseStalls == 0);
+        assert(on.takenBranches == 11);
+        assert(on.branchPenalty == 33);
+
+        Stats off = runForStats("programs/sum1to10.txt", false);
+        assert(off.insts  == 46);
+        assert(off.stalls == 3);
+        assert(off.cycles == 86);
+        assert(off.loadUseStalls == 0);
+        assert(off.takenBranches == 11);
+        assert(off.branchPenalty == 33);
+    }
     // [5] 경계: 빈 프로그램이면 insts, cycles, cpi()가 각각 얼마인가
-    (void)runForStats;   // 테스트를 채우면 삭제 (안 쓰는 static 함수 경고 방지)
+    {
+        Stats on  = runForStats("programs/empty.txt", true);
+        assert(on.insts  == 0);
+        assert(on.stalls == 0);
+        assert(on.cycles == 0); 
+        assert(on.loadUseStalls == 0);
+        assert(on.takenBranches == 0);
+        assert(on.branchPenalty == 0);
+        assert(on.cpi()==0.0);
+
+        Stats off = runForStats("programs/empty.txt", false);
+        assert(off.insts  == 0);
+        assert(off.stalls == 0);
+        assert(off.cycles == 0);  
+        assert(off.loadUseStalls == 0);
+        assert(off.takenBranches == 0);
+        assert(off.branchPenalty == 0);
+        assert(off.cpi()==0.0);
+    }
 }
 
 
