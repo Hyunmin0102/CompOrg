@@ -6,3 +6,4 @@ regmap
 regfile
 decoder
 out.txt
+build/

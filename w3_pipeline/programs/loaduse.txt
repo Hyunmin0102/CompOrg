@@ -1,0 +1,12 @@
+# W3 예제 1: lw 직후 사용 (load-use)
+# 데이터 메모리는 0으로 시작한다. 기대 stall 수는 직접 계산해서 main.cpp 테스트에 채운다.
+0x20080007  # [0x00] addi $t0, $zero, 7
+0xAC080000  # [0x04] sw   $t0, 0($zero)
+0x8C090000  # [0x08] lw   $t1, 0($zero)
+0x01295020  # [0x0c] add  $t2, $t1, $t1      # rs와 rt가 같은 레지스터
+0x8C0B0000  # [0x10] lw   $t3, 0($zero)
+0xAC0B0004  # [0x14] sw   $t3, 4($zero)      # sw의 rt(저장할 값)
+0x200C0008  # [0x18] addi $t4, $zero, 8
+0xAC0C000C  # [0x1c] sw   $t4, 12($zero)
+0x8C0D000C  # [0x20] lw   $t5, 12($zero)
+0x8DAEFFF8  # [0x24] lw   $t6, -8($t5)       # base(rs)로 사용, 음수 offset → 주소 0
