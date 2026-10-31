@@ -460,13 +460,30 @@ struct Options {
 };
 
 static Options parseArgs(int argc, char* argv[]) {
-    // TODO(W3): argv[1..]을 하나씩 std::string으로 보며
-    //           "--no-forwarding" → forwarding = false, "--"로 시작하는 다른 것 → 알 수 없는 옵션(throw),
-    //           그 외 → programPath (이미 있으면 파일이 두 개 → throw).
-    //           옵션 순서가 바뀌어도(./sim --no-forwarding prog.txt) 동작해야 한다.
-    (void)argc;
-    (void)argv;
-    return Options{};
+    Options opt;
+    // argv[0]은 프로그램 이름이므로 1부터 본다. 순서와 상관없이 하나씩 분류한다.
+    for (int i = 1; i < argc; ++i)
+    {
+        // char*끼리 ==로 비교하면 주소를 비교하므로 std::string으로 바꿔서 비교한다.
+        std::string arg = argv[i];
+        if (arg == "--no-forwarding")
+        {
+            opt.forwarding = false;
+        }
+        else if (arg.compare(0, 2, "--") == 0)   // "--"로 시작 (C++17에는 starts_with가 없다)
+        {
+            throw std::invalid_argument("unknown option '" + arg + "'");
+        }
+        else if (!opt.programPath.empty())
+        {
+            throw std::invalid_argument("more than one program file ('" + opt.programPath + "', '" + arg + "')");
+        }
+        else
+        {
+            opt.programPath = arg;
+        }
+    }
+    return opt;
 }
 
 
@@ -478,8 +495,18 @@ int main(int argc, char* argv[]) {
     run_tests();
     std::cout << "all tests passed\n";
 
-    // TODO(W3): parseArgs가 던지는 예외를 잡아 사용법과 함께 출력하고 1을 반환한다.
-    Options opt = parseArgs(argc, argv);
+    // 잘못된 인자(알 수 없는 옵션, 파일 두 개)면 parseArgs가 throw한다 → 메시지와 사용법을 출력하고 종료
+    Options opt;
+    try
+    {
+        opt = parseArgs(argc, argv);
+    }
+    catch (const std::invalid_argument& e)
+    {
+        std::cerr << "error: " << e.what() << "\n"
+                  << "usage: " << argv[0] << " <program file> [--no-forwarding]\n";
+        return 1;
+    }
     if (opt.programPath.empty())
     {
         std::cerr << "usage: " << argv[0] << " <program file> [--no-forwarding]\n";
