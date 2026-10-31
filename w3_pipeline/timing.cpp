@@ -2,14 +2,9 @@
 
 #include <iomanip>
 #include <algorithm>
-// 스켈레톤 규칙 (W2와 같음)
-//  - 반환값이 있는 함수의 `return ...;`은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
-//  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
 
 // 명령어가 없으면 0.0
 double Stats::cpi() const {
-    // TODO(W3): cycles / insts. 정수끼리 나누면 소수점이 잘린다 → static_cast<double>.
-    //           insts == 0 (빈 프로그램)이면 무엇을 돌려줄지도 정한다.
     if(insts == 0)
     {
         return 0.0;
@@ -18,8 +13,6 @@ double Stats::cpi() const {
 }
 
 void printStats(std::ostream& os, const Stats& s, bool forwarding) {
-    // TODO(W3): forwarding on/off, 명령어 수, 총 cycle, stall(그중 load-use), taken beq, 분기 손실, CPI 출력.
-    //           CPI는 std::fixed << std::setprecision(3). 둘 다 끈적(sticky)하니 출력 뒤 되돌릴지 생각해 본다.
     std::ios oldState(nullptr);
     oldState.copyfmt(os);
     os << std::fixed << std::setprecision(3);

@@ -398,13 +398,14 @@ static void test_sum1to10() {
     assert(cpu.reg(14) == 55);         // lw $t6, -4($s0) → 같은 주소에서 다시 읽음
     assert(cpu.reg(0) == 0);           // $zero 불변식
     assert(cpu.instCount() == 46);     // 2 + 반복 10번 × 4 + 마지막 beq 1 + 3
+    assert(cpu.instCount() == cpu.stats().insts);  // W3: Cpu와 PipelineTimer가 센 명령어 수가 같다
 }
 
 
 // ─────────────────────────────────────────────────────────────
 // W3: 파이프라인 통계 테스트 — 완료 기준: 손으로 계산한 값 = 시뮬레이터 출력
 //   예제 하나를 forwarding on/off 두 번 실행해 Stats를 돌려준다.
-//   기능 결과(레지스터·메모리)는 forwarding과 무관해야 한다 → 그것도 함께 확인해 볼 만하다.
+//   기능 결과(레지스터·메모리)는 forwarding과 무관해야 한다 → test_pipeline [6]에서 확인한다.
 // ─────────────────────────────────────────────────────────────
 static Stats runForStats(const std::string& path, bool forwarding) {
     Cpu cpu(256, 256);
@@ -415,9 +416,7 @@ static Stats runForStats(const std::string& path, bool forwarding) {
 }
 
 static void test_pipeline() {
-    // TODO(W3): 예제마다 손으로 계산한 값을 채운 뒤 주석을 푼다.
-    //           insts, stalls, loadUseStalls, takenBranches, branchPenalty, cycles를 모두 고정한다.
-    //
+    // 예제마다 forwarding on/off로 손계산한 6개 필드를 고정한다.
     // [1] programs/loaduse.txt
     {
         Stats on  = runForStats("programs/loaduse.txt", true);
@@ -510,6 +509,15 @@ static void test_pipeline() {
         assert(off.takenBranches == 0);
         assert(off.branchPenalty == 0);
         assert(off.cpi()==0.0);
+    }
+    // [6] 기능 결과는 forwarding과 무관하다 (타이밍 통계만 덧붙였는지 확인)
+    {
+        Cpu cpu(256, 256);
+        cpu.setForwarding(false);
+        cpu.loadProgram(loadProgramFile("programs/sum1to10.txt"));
+        cpu.run(1000);
+        assert(cpu.reg(9) == 55);          // $t1: forwarding on(test_sum1to10)과 같은 결과
+        assert(cpu.loadWord(4) == 55);
     }
 }
 

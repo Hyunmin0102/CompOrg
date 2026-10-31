@@ -6,9 +6,6 @@
 #include <sstream>
 #include <iomanip>
 #include <array>
-// 스켈레톤 규칙
-//  - 반환값이 있는 함수의 `return 0;` 등은 -Wreturn-type 경고를 막는 임시 값이다. 구현하면서 교체한다.
-//  - `(void)x;`는 -Wunused-parameter 경고를 막는 임시 줄이다. 매개변수를 쓰기 시작하면 삭제한다.
 
 Cpu::Cpu(size_t imemWords, size_t dmemWords) : regs_{}, pc_(0), imem_(imemWords,0), dmem_(dmemWords,0), programWords_(0), trace_(false), instCount_(0), timer_() {
 }
@@ -111,14 +108,12 @@ uint32_t Cpu::pc() const {
 
 //loadWord : data memory로부터 값 읽어오는 함수
 uint32_t Cpu::loadWord(uint32_t addr) const {
-    // TODO: memIndex()로 인덱스를 구해 dmem_에서 읽는다.
     size_t index = memIndex(addr, dmem_.size());
     return dmem_[index];
 }
 
 //storeWord : data memory에 값 저장하는 함수
 void Cpu::storeWord(uint32_t addr, uint32_t value) {
-    // TODO: memIndex()로 인덱스를 구해 dmem_에 쓴다.
     size_t index = memIndex(addr, dmem_.size());
     dmem_[index] = value;
 }
