@@ -229,7 +229,7 @@ struct Result {
     std::string name;                                     // "1-bit", "2-bit", "gshare"
     uint64_t    total   = 0;                              // 예측한 분기 수
     uint64_t    correct = 0;                              // 맞힌 수
-    std::unordered_map<uint64_t, uint64_t> mispredByPc;   // PC → 오예측 횟수
+    std::unordered_map<uint64_t, uint64_t> mispredByPc;   // PC → 오예측 횟수 (어느 분기가 몇 번 틀렸냐)
 
     // 정확도(%). 분기가 하나도 없으면 0.0 (출력에서는 n/a로 보인다)
     double accuracy() const {
@@ -249,9 +249,24 @@ Result simulateOneBit(const std::vector<BranchRecord>& trace, unsigned indexBits
     //   문법: 범위 기반 for, const 참조(const auto&), std::unordered_map의 operator[]
     //   확인할 것: operator[]는 없는 키를 0으로 만들어 넣는다 — 여기서는 그게 편리한 이유
     //             predict와 update의 순서
-    (void)trace;       // 임시
-    (void)indexBits;   // 임시
-    Result r;          // 임시 반환값
+    OneBitPredictor pred(indexBits);
+    Result r;
+    //trace : 테스트할 분기를 전체 다 모아둔 것.
+    for(const auto& rec : trace)
+    {
+        r.total += 1;
+        bool is_right = (pred.predict(rec.pc) == rec.taken);
+        if (is_right)
+        {
+            r.correct+=1;
+        }
+        else
+        {
+            r.mispredByPc[rec.pc] += 1;
+        }
+        pred.update(rec.pc, rec.taken);
+    }
+
     r.name = "1-bit";
     return r;
 }
