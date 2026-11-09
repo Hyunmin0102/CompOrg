@@ -7,3 +7,5 @@ regfile
 decoder
 out.txt
 build/
+bpred
+gen_trace
