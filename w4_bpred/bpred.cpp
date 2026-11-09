@@ -28,19 +28,24 @@ struct BranchRecord {
     uint64_t pc    = 0;
     bool     taken = false;
 };
-
+ 
 // trace 한 줄("0x400120 1")을 BranchRecord로 바꾼다.
 // 호출하는 쪽(loadTrace)이 '#' 주석 줄과 빈 줄은 이미 걸러 낸다.
 BranchRecord parseTraceLine(const std::string& line) {
-    // TODO: 한 줄에서 16진수 PC와 taken(0/1)을 읽는다.
-    //   문법: std::istringstream, operator>>, 입력 조작자 std::hex
-    //   확인할 것:
-    //     - "0x" 접두어가 있는 경우와 없는 경우 둘 다 읽히는가
-    //     - std::hex는 스트림에 남는다(sticky). taken을 읽기 전에 어떻게 되돌릴까
-    //     - taken이 0/1이 아니거나, 값이 하나 빠졌거나, 뒤에 글자가 더 남은 줄 → 예외(std::invalid_argument)
-    //     - 스트림 상태 확인: fail(), 또는 스트림 자체를 bool로 쓰기
-    (void)line;              // 임시: 구현하면 지운다 (-Wextra의 unused parameter 경고 막기용)
-    return BranchRecord{};   // 임시 반환값
+    std::istringstream iss(line); // line을 읽어와 공백을 기준으로 나눔.
+
+    BranchRecord br;
+    iss >> std::hex >> br.pc >> std::dec >> br.taken; //hex 모드의 operator>>는 0x, 0X를 받아줌.
+    if (iss.fail())
+    {
+        throw std::invalid_argument("Can't read two values correctly"); // taken 이 0 or 1이 아니거나 pc가 16진수가 아니면 -> invalid argument
+    }
+    iss >> std::ws;
+    if (!iss.eof())
+    {
+        throw std::invalid_argument("Useless string left");
+    }
+    return br;  
 }
 
 // trace 파일 전체를 읽는다. '#' 이후는 주석, 빈 줄 허용.
