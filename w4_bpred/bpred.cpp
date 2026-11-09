@@ -96,36 +96,26 @@ public:
 private:
     size_t index(uint64_t pc) const;
 
-    std::vector<uint8_t> table_;
+    std::vector<uint8_t> table_; //
     uint64_t             mask_;
 };
 
+//루프 : backedge가 많으므로 table_의 taken값은 1로 초기화.
 OneBitPredictor::OneBitPredictor(unsigned indexBits)
-    : table_(), mask_(0) {
-    // TODO: 테이블 크기와 mask를 정한다. 테이블의 초기값도 정하고, 왜 그 값인지 주석으로 남긴다.
-    //   문법: 멤버 초기화 리스트, std::vector의 (개수, 초기값) 생성자, 비트 시프트
-    //   확인할 것: 1을 시프트할 때 결과 타입(int)과 mask_ 타입(uint64_t)이 다르다
-    (void)indexBits;   // 임시
+    : table_(uint64_t{1}<<indexBits, 1), mask_(table_.size()-1) {
+
 }
 
 size_t OneBitPredictor::index(uint64_t pc) const {
-    // TODO: PC를 테이블 인덱스로 바꾼다 (위 주석의 식).
-    //   문법: >>, &, static_cast
-    (void)pc;   // 임시
-    return 0;   // 임시 반환값
+    return static_cast<size_t>((pc >> 2) & mask_);
 }
 
 bool OneBitPredictor::predict(uint64_t pc) const {
-    // TODO: 해당 칸이 기억하는 마지막 결과를 예측으로 돌려준다.
-    //   문법: const 멤버 함수 (여기서는 테이블을 바꿀 수 없다), uint8_t → bool 변환
-    (void)pc;      // 임시
-    return false;  // 임시 반환값
+    return table_.at(index(pc)); // 지금은 table_에 0 또는 1만 들어가서 상관없지만, 2-bit에서는 11,10,01,00 등의 상태가 들어가므로 01 의 상태에서도 true가 나올 수 있음.
 }
 
 void OneBitPredictor::update(uint64_t pc, bool taken) {
-    // TODO: 해당 칸에 이번 결과를 기록한다.
-    (void)pc;      // 임시
-    (void)taken;   // 임시
+    table_.at(index(pc)) = taken;
 }
 
 
