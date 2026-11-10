@@ -21,6 +21,11 @@
 #include <utility>
 #include <vector>
 
+constexpr int      COUNTER_MAX     = 3;
+constexpr int      COUNTER_MIN     = 0;
+constexpr int      WEAKLY_TAKEN    = 2;
+constexpr int      TAKEN_THRESHOLD = 2;
+
 // ─────────────────────────────────────────────────────────────
 // trace 레코드
 // ─────────────────────────────────────────────────────────────
@@ -139,33 +144,32 @@ private:
     uint64_t             mask_;
 };
 
+// table 내부 값을 2(weakly taken)으로 정한 이유 : always taken이든 always not taken이든 가장 정확도가 높다. 
+// 다른 이유도 있겠지만 일반적으로 weakly taken으로 정하므로 일단 2로 정하고 이유는 구현 이후 생각해보겠음.
 TwoBitPredictor::TwoBitPredictor(unsigned indexBits)
-    : table_(), mask_(0) {
-    // TODO: 1-bit와 같이 테이블과 mask를 정한다. 카운터 초기값(0..3 중 무엇?)과 이유를 주석으로 남긴다.
-    //   문법: 멤버 초기화 리스트
-    (void)indexBits;   // 임시
+    : table_(uint64_t(1)<<indexBits, WEAKLY_TAKEN), mask_(table_.size()-1) {
 }
 
+//이 함수는 1-bit index와 동일하다.
 size_t TwoBitPredictor::index(uint64_t pc) const {
-    // TODO: 1-bit와 같은 인덱스 계산 (중복은 의도된 것)
-    (void)pc;   // 임시
-    return 0;   // 임시 반환값
+    return static_cast<size_t>((pc >> 2) & mask_);
 }
 
 bool TwoBitPredictor::predict(uint64_t pc) const {
-    // TODO: 카운터 값으로 taken / not-taken을 정한다.
-    //   확인할 것: 경계값(1과 2)이 어느 쪽인지
-    (void)pc;      // 임시
-    return false;  // 임시 반환값
+    return table_.at(index(pc)) >= TAKEN_THRESHOLD;
 }
 
 void TwoBitPredictor::update(uint64_t pc, bool taken) {
-    // TODO: taken이면 카운터를 올리고, 아니면 내린다. 0 아래, 3 위로는 가지 않는다(포화).
-    //   문법: std::min, std::max (<algorithm>)
-    //   확인할 것: std::min(a, b)는 a와 b의 타입이 같아야 한다. uint8_t + 1의 타입은 무엇일까
-    //             (정수 승격, integral promotion). 타입을 맞추는 방법: static_cast
-    (void)pc;      // 임시
-    (void)taken;   // 임시
+    int a = static_cast<int>(table_.at(index(pc)));
+    int& counter = a;
+    if (taken)
+    {
+        counter = std::min(counter + 1, COUNTER_MAX);
+    }
+    else
+    {
+        counter = std::max(counter - 1, COUNTER_MIN);
+    }
 }
 
 
