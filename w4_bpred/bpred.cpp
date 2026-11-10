@@ -160,15 +160,13 @@ bool TwoBitPredictor::predict(uint64_t pc) const {
 }
 
 void TwoBitPredictor::update(uint64_t pc, bool taken) {
-    int a = static_cast<int>(table_.at(index(pc)));
-    int& counter = a;
-    if (taken)
-    {
-        counter = std::min(counter + 1, COUNTER_MAX);
+    uint8_t& counter = table_.at(index(pc));
+    int count = static_cast<int>(counter);
+    if (taken) {
+        counter = static_cast<uint8_t>(std::min(count + 1, COUNTER_MAX));
     }
-    else
-    {
-        counter = std::max(counter - 1, COUNTER_MIN);
+    else {
+        counter = static_cast<uint8_t>(std::max(count - 1, COUNTER_MIN));
     }
 }
 
@@ -181,7 +179,7 @@ void TwoBitPredictor::update(uint64_t pc, bool taken) {
 // ─────────────────────────────────────────────────────────────
 class GsharePredictor {
 public:
-    GsharePredictor(unsigned indexBits, unsigned historyBits);
+    GsharePredictor(unsigned indexBits, unsigned historyBits); //historyBits : 최근 몇 개의 분기를 볼 건지 여부
 
     bool predict(uint64_t pc) const;
     void update(uint64_t pc, bool taken);   // 카운터 갱신 + GHR 갱신
@@ -195,34 +193,34 @@ private:
     uint64_t             historyMask_;   // GHR을 historyBits 비트로 자르는 mask
 };
 
+// table_ 칸 초깃값: 2-bit와 같은 WEAKLY_TAKEN (두 예측기를 같은 조건에서 비교하기 위해).
+// ghr_ 초깃값 0: 아직 실행된 분기가 없으므로 "최근 분기가 모두 not-taken"으로 본다.
+//   분기마다 한 비트씩 밀려 나가므로 historyBits번 분기 뒤에는 초깃값의 영향이 사라진다.
 GsharePredictor::GsharePredictor(unsigned indexBits, unsigned historyBits)
-    : table_(), mask_(0), ghr_(0), historyMask_(0) {
-    // TODO: 테이블, mask, GHR 초기값, historyMask_를 정한다.
-    //   문법: 멤버 초기화 리스트
-    //   확인할 것: historyBits == 0이면 gshare가 어떤 예측기와 같아지는가
-    (void)indexBits;     // 임시
-    (void)historyBits;   // 임시
-}
+    : table_(uint64_t(1) << indexBits, WEAKLY_TAKEN),
+      mask_(table_.size() - 1),
+      ghr_(0),
+      historyMask_((uint64_t(1) << historyBits) - 1) {}
 
 size_t GsharePredictor::index(uint64_t pc) const {
-    // TODO: PC와 GHR을 XOR해서 인덱스를 만든다 (위 주석의 식).
-    //   문법: ^, &
-    (void)pc;   // 임시
-    return 0;   // 임시 반환값
+    return static_cast<size_t>(((pc >> 2) ^ ghr_) & mask_);
 }
 
 bool GsharePredictor::predict(uint64_t pc) const {
-    // TODO: 2-bit와 같은 방식으로 예측한다.
-    (void)pc;      // 임시
-    return false;  // 임시 반환값
+    return table_.at(index(pc)) >= TAKEN_THRESHOLD;
 }
 
+//predict 할 때는 지금까지의 값을 이용해 예측을 하고, predict 이후에는 지금 값을 포함해 update 해야함.
 void GsharePredictor::update(uint64_t pc, bool taken) {
-    // TODO: 1) 해당 칸의 포화 카운터 갱신  2) GHR에 이번 결과를 밀어 넣고 historyBits로 자른다
-    //   문법: std::min / std::max, <<, |, &
-    //   확인할 것: 1)과 2) 중 무엇을 먼저 해야 하는가 (index()가 ghr_을 읽는다는 점을 생각해 볼 것)
-    (void)pc;      // 임시
-    (void)taken;   // 임시
+    uint8_t& counter = table_.at(index(pc));
+    int count = static_cast<int>(counter);
+    if (taken) {
+        counter = static_cast<uint8_t>(std::min(count + 1, COUNTER_MAX));
+    }
+    else {
+        counter = static_cast<uint8_t>(std::max(count - 1, COUNTER_MIN));
+    }
+    ghr_ = ((ghr_ << 1) | taken) & historyMask_;
 }
 
 
@@ -248,11 +246,6 @@ struct Result {
 // trace 하나를 예측기 하나로 돌린다. 예측기마다 함수가 따로 있다 (공통 기반 클래스가 없으므로).
 //   세 함수의 본문은 예측기 타입과 생성자 인자만 다르고 나머지는 같다 → W5에서 하나로 합칠 자리.
 Result simulateOneBit(const std::vector<BranchRecord>& trace, unsigned indexBits) {
-    // TODO: 예측기를 만들고 trace를 순서대로 돌며
-    //   예측 → 실제 결과와 비교해 total/correct 집계 → 틀렸으면 그 PC의 오예측 수 증가 → update
-    //   문법: 범위 기반 for, const 참조(const auto&), std::unordered_map의 operator[]
-    //   확인할 것: operator[]는 없는 키를 0으로 만들어 넣는다 — 여기서는 그게 편리한 이유
-    //             predict와 update의 순서
     OneBitPredictor pred(indexBits);
     Result r;
     //trace : 테스트할 분기를 전체 다 모아둔 것.
@@ -276,20 +269,44 @@ Result simulateOneBit(const std::vector<BranchRecord>& trace, unsigned indexBits
 }
 
 Result simulateTwoBit(const std::vector<BranchRecord>& trace, unsigned indexBits) {
-    // TODO: simulateOneBit과 같은 일을 TwoBitPredictor로 한다.
-    (void)trace;       // 임시
-    (void)indexBits;   // 임시
-    Result r;          // 임시 반환값
+    TwoBitPredictor pred(indexBits);
+    Result r;
+    for (const auto& rec : trace)
+    {
+        ++r.total;
+        bool isRight = (pred.predict(rec.pc) == rec.taken);
+        if (isRight)
+        {
+            ++r.correct;
+        }
+        else
+        {
+            ++r.mispredByPc[rec.pc];
+        }
+        pred.update(rec.pc, rec.taken);
+    }
+
     r.name = "2-bit";
     return r;
 }
 
 Result simulateGshare(const std::vector<BranchRecord>& trace, unsigned indexBits, unsigned historyBits) {
-    // TODO: simulateOneBit과 같은 일을 GsharePredictor로 한다.
-    (void)trace;         // 임시
-    (void)indexBits;     // 임시
-    (void)historyBits;   // 임시
-    Result r;            // 임시 반환값
+    GsharePredictor pred(indexBits, historyBits);
+    Result r;       
+    for (const auto& rec : trace)
+    {
+        ++r.total;
+        bool isRight = (pred.predict(rec.pc) == rec.taken);
+        if (isRight)
+        {
+            ++r.correct;
+        }
+        else
+        {
+            ++r.mispredByPc[rec.pc];
+        }
+        pred.update(rec.pc, rec.taken);
+    }
     r.name = "gshare";
     return r;
 }

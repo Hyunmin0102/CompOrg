@@ -53,17 +53,20 @@ trace 형식: 한 줄에 `PC(16진수) taken(0/1)`, 예: `0x400120 1`. `#` 주�
 - `parseTraceLine`: `std::hex` → `std::dec`으로 읽기, `fail()` 검사, 그 뒤 따로 `std::ws` + `eof()`로 남은 글자 검사
 - `OneBitPredictor` 전체: 초기값 1(taken). 이유: 루프 back edge는 마지막 한 번 빼고 taken
 - `simulateOneBit`: 예측 → 비교·집계 → 틀렸을 때만 `mispredByPc[pc]` 증가 → 분기마다 update
+- `TwoBitPredictor` 생성자·`index`·`predict` (PR #5)
+  - 카운터 상수는 모두 `int`: `COUNTER_MIN = 0`, `COUNTER_MAX = 3`, `WEAKLY_TAKEN = 2`, `TAKEN_THRESHOLD = 2`
+    (`std::min`/`std::max`에서 `int`와 `uint8_t`가 엇갈리는 컴파일 에러를 피하려고 바꿈)
+  - 초기값은 `STRONGLY_TAKEN`(3)에서 `WEAKLY_TAKEN`(2)으로 바꿨다. 이유를 적은 주석은 아직 "구현 후 다시 생각"으로 남아 있다
 
-진행 중 (서버 작업 폴더에만 있고 아직 커밋 안 됨): `TwoBitPredictor`
-- 상수: `COUNTER_MIN = 0`, `COUNTER_MAX = 3`, `TAKEN_THRESHOLD = 2`, `STRONGLY_TAKEN = 3`(초기값)
-- 생성자, `predict`(`>= TAKEN_THRESHOLD`) 완료
-- `update`: `std::min`/`std::max`에서 `int`와 `uint8_t`가 엇갈려 컴파일 에러
-  - 정한 해결책: 카운터 상수 네 개를 모두 `int`로 바꾸고, "table_ 원소가 uint8_t라 255 이하" 주석을 남긴다
-  - 남은 정리: `index(pc)` 세 번 호출 → 지역 변수나 참조(`uint8_t&`)로 한 번만
+진행 중: `TwoBitPredictor::update`
+- 버그: 칸 값을 `int a`에 복사한 뒤 `int& counter = a`로 계산해서 `table_` 칸이 바뀌지 않는다
+  - 고칠 방향: 칸에 직접 참조를 걸거나, 계산한 뒤 칸에 다시 대입한다
+- 남은 정리: `index(pc)`를 한 번만 부르게 한다
+- 확인: build/의 실험 코드로 taken/not-taken을 넣어서 칸 값이 0..3 안에서 바뀌는지 본다
 
 아직 답하지 않은 질문
-- 2-bit 초기값 3(strong T)과 2(weak T) 중 무엇으로 할까? loop의 정상 상태는 같다. alternate와 always_not_taken에서 초기값 3, 2, 1일 때를 손계산해 보고 정한 뒤 주석을 고친다.
-- 2-bit 생성자 주석의 N은 "주기"인데, README·gen_trace의 N은 "taken 횟수"다. 기호를 맞춘다.
+- 2-bit 초기값을 2(weak T)로 바꾼 이유를 정리한다. alternate와 always_not_taken에서 초기값이 3, 2, 1일 때를 손계산해 보고 생성자 주석을 고친다.
+- 2-bit 생성자 주석의 N은 "주기"인데, README·gen_trace의 N은 "taken 횟수"다. 기호를 맞춘다. (지금 생성자 주석에는 N이 없음. 해결됐다면 이 줄을 지운다)
 - gshare `update`에서 카운터 갱신과 GHR 갱신 중 무엇을 먼저 할까? (`index()`가 `ghr_`을 읽는다)
 - README 확인 과제 맨 위의 초기값 칸을 채운다.
 
