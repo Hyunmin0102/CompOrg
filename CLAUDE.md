@@ -6,7 +6,7 @@ ETH DDCA Spring 2025 (Onur Mutlu) 강의 개념을 매주 C++로 구현하며, �
 명령어 디코더(W1) → 명령어 시뮬레이터(W2) → stall·CPI 측정(W3) → 분기 예측기(W4)
 → 추상 클래스 리팩터링·파일 분리(W5) → 캐시 시뮬레이터 v1·v2(W6) → L1/L2 + 프리페처(W7)
 
-현재 주차 과제: @docs/plan_w2.md
+현재 주차 과제: @docs/plan_w4.md
 
 # 저장소 구조
 
@@ -16,7 +16,9 @@ CompOrg/
 ├── docs/            # 주차별 과제 문서 (plan_wN.md)
 ├── w0_review/       # W0: C++ 복습
 ├── w1_decoder/      # W1: 명령어 디코더 (decoder.cpp)
-└── w2_simulator/    # W2: 명령어 시뮬레이터 (이번 주 작업 폴더)
+├── w2_simulator/    # W2: 명령어 시뮬레이터
+├── w3_pipeline/     # W3: 5단 파이프라인 stall·CPI 측정
+└── w4_bpred/        # W4: 분기 예측기 (이번 주 작업 폴더)
 ```
 
 - 주차마다 폴더를 새로 만들고, 그 주 작업은 해당 폴더 안에서만 한다.
