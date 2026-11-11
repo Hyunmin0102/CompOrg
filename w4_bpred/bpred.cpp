@@ -315,34 +315,52 @@ Result simulateGshare(const std::vector<BranchRecord>& trace, unsigned indexBits
 // ─────────────────────────────────────────────────────────────
 // 오예측 Top K
 // ─────────────────────────────────────────────────────────────
-
 // 오예측이 많은 순서로 최대 k개의 (PC, 횟수)를 돌려준다.
 std::vector<std::pair<uint64_t, uint64_t>> topMispredicted(
         const std::unordered_map<uint64_t, uint64_t>& mispredByPc, size_t k) {
-    // TODO: unordered_map의 내용을 vector로 옮기고, 정렬한 뒤 앞의 k개만 남긴다.
-    //   문법: vector의 반복자 범위 생성자(begin, end), std::sort, 람다(lambda) 비교 함수,
-    //         resize 또는 erase
-    //   확인할 것:
-    //     - unordered_map은 순서가 없다 → 정렬 없이 출력하면 실행할 때마다 순서가 달라질 수도 있다
-    //     - 횟수가 같은 PC끼리의 순서(동점 처리). 정하지 않으면 출력이 결정적이지 않다
-    //     - 원소가 k개보다 적은 경우
-    (void)mispredByPc;   // 임시
-    (void)k;             // 임시
-    return {};           // 임시 반환값
+
+    // std::vector<std::pair<uint64_t, uint64_t>> vec;
+    // for (const auto& elem : mispredByPc)
+    // {
+    //     vec.push_back({elem.first, elem.second});
+    // }
+    
+    // 방법 B: 반복자 범위 생성자. [begin, end) 사이 원소를 전부 복사해서 vector를 만든다.
+    //   pair<const uint64_t, uint64_t>(map 원소) → pair<uint64_t, uint64_t>(vector 원소)로 하나씩 변환된다.
+    //   {}가 아니라 ()를 쓴다: {}면 "반복자 두 개짜리 initializer_list"로 해석될 수 있다.
+    std::vector<std::pair<uint64_t, uint64_t>> vec(mispredByPc.begin(), mispredByPc.end());
+    std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b)  // a,b는 pair
+    {
+        if(a.second == b.second)
+        {
+            return a.first < b.first; // second가 같으면 PC로 봐야하는데, PC는 보통 오름차순으로 읽음
+        }
+        return a.second > b.second;
+    });
+    vec.resize(std::min(k, vec.size()));
+    return vec;
 }
 
 // 예측기 하나의 Top K를 출력한다. 예:
 //     1-bit  top 10 mispredicted
 //       0x400120        10
 void printTopMispredicted(std::ostream& os, const Result& r, size_t k) {
-    // TODO: topMispredicted로 목록을 받아 한 줄에 PC(16진수)와 횟수를 출력한다.
-    //   문법: 구조적 바인딩(structured binding) for (const auto& [pc, cnt] : ...),
-    //         std::hex / std::dec, std::setw
-    //   확인할 것: std::hex는 sticky → 출력 뒤 os의 서식을 되돌린다 (printAccuracyTable 참고)
-    //             오예측이 하나도 없을 때의 출력
-    (void)os;   // 임시
-    (void)r;    // 임시
-    (void)k;    // 임시
+    // std::hex 같은 서식은 sticky라서 호출자의 os에 남는다 → 시작할 때 저장하고 끝에서 되돌린다
+    std::ios oldState(nullptr);
+    oldState.copyfmt(os);
+
+    os << "    " << r.name << "  top " << k << " mispredicted\n";
+
+    const std::vector<std::pair<uint64_t, uint64_t>> top = topMispredicted(r.mispredByPc, k);
+    if (top.empty()) {
+        os << "      (none)\n";   // 오예측이 하나도 없을 때 (예: always_taken)
+    }
+    for (const auto& [pc, cnt] : top) {
+        // PC는 16진수, 횟수는 10진수. std::dec으로 되돌리지 않으면 cnt도 16진수로 나온다
+        os << "      0x" << std::hex << pc << std::dec << std::setw(10) << cnt << "\n";
+    }
+
+    os.copyfmt(oldState);
 }
 
 

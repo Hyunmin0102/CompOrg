@@ -82,7 +82,15 @@ gen_trace 사용법: `./gen_trace <pattern> <length> <out file> [N]`
 `make run` 출력을 붙여 넣는다.
 
 ```
-(여기에 붙여 넣기)
+=== accuracy (index bits = 10, table entries = 1024, gshare history bits = 10) ===
+trace                       branches     1-bit     2-bit    gshare
+tests/loop_n4.txt                 50    62.00%    80.00%    96.00%
+tests/loop_n9.txt                100    81.00%    90.00%    99.00%
+tests/alternate.txt               20     5.00%    50.00%    75.00%
+tests/always_taken.txt            20   100.00%   100.00%   100.00%
+tests/always_not_taken.txt        20    95.00%    95.00%    95.00%
+tests/correlated.txt            2000    48.90%    50.50%    73.35%
+tests/mixed.txt                 4000    60.10%    54.70%    98.03%
 ```
 
 ## 분석
