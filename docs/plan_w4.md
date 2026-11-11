@@ -47,28 +47,34 @@ trace 형식: 한 줄에 `PC(16진수) taken(0/1)`, 예: `0x400120 1`. `#` 주�
 5. `topMispredicted`, `printTopMispredicted`
 6. README 확인 과제 손계산, 결과 붙여 넣기, 분석
 
-## 진행 상황 (2026-11-10 기준 스냅샷, 진행하면서 갱신)
+## 진행 상황 (2026-11-11 기준 스냅샷, 진행하면서 갱신)
 
-완료 (main에 커밋됨)
+코드 쪽 완료 기준(`make run`, `make top`, `make regress`)은 모두 충족. 남은 것은 README와 태그.
+
+완료 (main에 커밋됨, 마지막 커밋 897037b)
 - `parseTraceLine`: `std::hex` → `std::dec`으로 읽기, `fail()` 검사, 그 뒤 따로 `std::ws` + `eof()`로 남은 글자 검사
 - `OneBitPredictor` 전체: 초기값 1(taken). 이유: 루프 back edge는 마지막 한 번 빼고 taken
 - `simulateOneBit`: 예측 → 비교·집계 → 틀렸을 때만 `mispredByPc[pc]` 증가 → 분기마다 update
-- `TwoBitPredictor` 생성자·`index`·`predict` (PR #5)
+- `TwoBitPredictor` 전체
   - 카운터 상수는 모두 `int`: `COUNTER_MIN = 0`, `COUNTER_MAX = 3`, `WEAKLY_TAKEN = 2`, `TAKEN_THRESHOLD = 2`
     (`std::min`/`std::max`에서 `int`와 `uint8_t`가 엇갈리는 컴파일 에러를 피하려고 바꿈)
-  - 초기값은 `STRONGLY_TAKEN`(3)에서 `WEAKLY_TAKEN`(2)으로 바꿨다. 이유를 적은 주석은 아직 "구현 후 다시 생각"으로 남아 있다
+  - 초기값은 `STRONGLY_TAKEN`(3)에서 `WEAKLY_TAKEN`(2)으로 바꿨다
+  - `update`: `uint8_t& counter = table_.at(index(pc))`로 칸에 직접 참조를 건다(`index` 한 번). `int`로 계산한 뒤 `static_cast<uint8_t>`로 대입
+- `simulateTwoBit`
+- `GsharePredictor` 전체 + `simulateGshare`
+  - 초깃값: 칸은 `WEAKLY_TAKEN`(2-bit와 같은 조건), `ghr_`은 0("최근 분기가 모두 not-taken", historyBits번 분기 뒤 영향 사라짐)
+  - `update` 순서: **카운터 먼저, GHR 나중**. GHR을 먼저 바꾸면 predict 때 본 칸과 다른 칸을 갱신한다
+  - GHR 갱신: `((ghr_ << 1) | taken) & historyMask_`. 괄호 없이 `ghr_ << 1 + taken`은 `ghr_ << (1 + taken)`(우선순위 함정)
+- `topMispredicted`: 반복자 범위 생성자로 vector 생성 → 람다 + `std::sort`(오예측 수 내림차순, 동점은 PC) → `resize(std::min(k, vec.size()))`
+- `printTopMispredicted`: `copyfmt`로 서식 저장·복원, PC만 `std::hex`, 오예측이 없으면 `(none)`
+- README "결과" 절에 `make run` 출력 붙여 넣음
 
-진행 중: `TwoBitPredictor::update`
-- 버그: 칸 값을 `int a`에 복사한 뒤 `int& counter = a`로 계산해서 `table_` 칸이 바뀌지 않는다
-  - 고칠 방향: 칸에 직접 참조를 걸거나, 계산한 뒤 칸에 다시 대입한다
-- 남은 정리: `index(pc)`를 한 번만 부르게 한다
-- 확인: build/의 실험 코드로 taken/not-taken을 넣어서 칸 값이 0..3 안에서 바뀌는지 본다
-
-아직 답하지 않은 질문
-- 2-bit 초기값을 2(weak T)로 바꾼 이유를 정리한다. alternate와 always_not_taken에서 초기값이 3, 2, 1일 때를 손계산해 보고 생성자 주석을 고친다.
+남은 일 (진도를 따라잡은 뒤, 또는 마지막 buffer 주에)
+- README 확인 과제 손계산 → 시뮬레이터 결과와 비교 → "분석" 절 쓰기
+- README 확인 과제 맨 위의 초기값 칸을 채운다
+- 2-bit 생성자 주석 정리: 아직 "이유는 구현 이후 생각해보겠음"으로 남아 있다. alternate와 always_not_taken에서 초기값이 3, 2, 1일 때를 손계산해 보고 고친다
 - 2-bit 생성자 주석의 N은 "주기"인데, README·gen_trace의 N은 "taken 횟수"다. 기호를 맞춘다. (지금 생성자 주석에는 N이 없음. 해결됐다면 이 줄을 지운다)
-- gshare `update`에서 카운터 갱신과 GHR 갱신 중 무엇을 먼저 할까? (`index()`가 `ghr_`을 읽는다)
-- README 확인 과제 맨 위의 초기값 칸을 채운다.
+- 위가 끝나면 `git tag w4`
 
 ## 리뷰 방식 (이번 주 추가 규칙)
 
