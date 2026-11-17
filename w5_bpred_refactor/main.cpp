@@ -44,9 +44,23 @@ struct Result {
 //   - 예측기를 기반 클래스 참조(reference to base)로 받는다: 동적 바인딩(dynamic binding)
 //   - 결과 이름은 예측기에게 묻는다
 Result simulate(BranchPredictor& pred, const std::vector<BranchRecord>& trace) {
-    (void)pred;
-    (void)trace;
-    return Result{};   // 임시 반환값
+    Result r;
+    for(const auto& rec : trace)
+    {
+        r.total += 1;
+        bool is_right = (pred.predict(rec.pc) == rec.taken);
+        if (is_right)
+        {
+            r.correct+=1;
+        }
+        else
+        {
+            r.mispredByPc[rec.pc] += 1;
+        }
+        pred.update(rec.pc, rec.taken);
+    }
+    r.name = pred.name();
+    return r;   // 임시 반환값
 }
 
 
@@ -272,8 +286,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // TODO: opt에서 PredictorConfig를 채운다
-
+    PredictorConfig config;
+    config.historyBits = opt.historyBits;
+    config.indexBits = opt.indexBits;
+    
     std::vector<TraceResult> rows;
     for (const std::string& path : opt.tracePaths)
     {
@@ -292,12 +308,15 @@ int main(int argc, char* argv[]) {
         row.path     = path;
         row.branches = trace.size();
 
-        // TODO: 예측기 목록을 만들고 다형성(polymorphism)으로 순회해 row.results를 채운다
-        //   - 컨테이너: std::vector<std::unique_ptr<BranchPredictor>>
-        //   - 담기: make_predictor, std::move (unique_ptr는 복사할 수 없다)
-        //   - 확인: std::move가 꼭 필요한 경우와 없어도 되는 경우를 구분해 본다
-        //   - 순회: 범위 기반 for, 역참조(*)로 simulate에 넘긴다
-        //   - 확인: 예측기 상태가 trace마다 처음부터 시작해야 W4와 결과가 같다
+        std::vector<std::unique_ptr<BranchPredictor>> predictors;
+        for(const auto& name : predictor_names())
+        {
+            predictors.push_back(make_predictor(name, config));
+        }
+        for(const auto& pred : predictors)
+        {
+            row.results.push_back(simulate(*(pred), trace));
+        }
 
         rows.push_back(row);
     }
