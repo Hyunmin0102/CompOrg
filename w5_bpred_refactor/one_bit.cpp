@@ -1,5 +1,20 @@
 #include "one_bit.h"
 
-// TODO: OneBitPredictor 멤버 함수 정의 (W4 bpred.cpp에서 옮긴다) + name
-//   - 클래스 밖 정의: 범위 지정 연산자(scope resolution, ::)
-//   - 확인: virtual·override 키워드를 클래스 밖 정의에도 쓸 수 있는가?
+OneBitPredictor::OneBitPredictor(unsigned indexBits)
+    : table_(uint64_t{1} << indexBits, 1), mask_(table_.size() - 1) {}
+
+size_t OneBitPredictor::index(uint64_t pc) const {
+    return static_cast<size_t>((pc >> 2) & mask_);
+}
+
+bool OneBitPredictor::predict(uint64_t pc) const {
+    return table_.at(index(pc)); 
+}
+
+void OneBitPredictor::update(uint64_t pc, bool taken) {
+    table_.at(index(pc)) = taken;
+}
+
+std::string OneBitPredictor::name() const {
+    return "1-bit";
+}

@@ -9,10 +9,17 @@
 
 #include "branch_predictor.h"
 
-// TODO: OneBitPredictor 선언 (W4 bpred.cpp의 선언을 옮긴다)
-//   - BranchPredictor를 상속한다: 상속 접근 지정자(public inheritance)
-//   - predict / update / name: override 키워드
-//   - 생성자: explicit
-//   - private 멤버: W4와 같다
-class OneBitPredictor {
+class OneBitPredictor : public BranchPredictor {
+public:
+    explicit OneBitPredictor(unsigned indexBits);
+
+    bool predict(uint64_t pc) const override;        // true = taken으로 예측
+    void update(uint64_t pc, bool taken) override;   // 실제 결과로 테이블 갱신
+    std::string name() const override;
+
+private:
+    size_t index(uint64_t pc) const;
+
+    std::vector<uint8_t> table_;
+    uint64_t             mask_;
 };
