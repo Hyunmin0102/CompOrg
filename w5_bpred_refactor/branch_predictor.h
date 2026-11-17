@@ -8,12 +8,9 @@
 
 class BranchPredictor {
 public:
-    // TODO: 가상 소멸자(virtual destructor)
-    //   main은 std::unique_ptr<BranchPredictor>로 파생 클래스 객체를 지운다
-
-    // TODO: predict — 순수 가상 함수(pure virtual function). W4 predict와 같은 역할
-
-    // TODO: update — 순수 가상 함수. W4 update와 같은 역할
-
-    // TODO: name — 순수 가상 함수. 결과 표의 열 이름("1-bit", "2-bit", "gshare")을 돌려준다
+    virtual ~BranchPredictor() = default;
+    
+    virtual bool predict(uint64_t pc) const = 0;
+    virtual void update(uint64_t pc, bool taken) = 0;
+    virtual std::string name() const = 0;
 };
