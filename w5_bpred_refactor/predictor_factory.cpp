@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 std::vector<std::string> predictor_names() {
-    return {"1-bit", "2-bit"};
+    return {"1-bit", "2-bit", "gshare"};
 }
 
 std::unique_ptr<BranchPredictor> make_predictor(const std::string& name, const PredictorConfig& config) {
@@ -19,9 +19,9 @@ std::unique_ptr<BranchPredictor> make_predictor(const std::string& name, const P
     {
         return std::make_unique<TwoBitPredictor>(config.indexBits);
     }
-    // else if(name == "gshare")
-    // {
-    //     return std::make_unique<GsharePredictor>(config.indexBits, config.historyBits);
-    // }
+    else if(name == "gshare")
+    {
+        return std::make_unique<GsharePredictor>(config.indexBits, config.historyBits);
+    }
     throw std::invalid_argument("Unknown name: " + name);
 }
