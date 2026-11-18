@@ -9,8 +9,20 @@
 
 #include "branch_predictor.h"
 
-// TODO: GsharePredictor 선언 (W4 bpred.cpp의 선언을 옮긴다)
-//   - BranchPredictor를 상속, predict / update / name에 override
-//   - 생성자 인자가 2개다: 팩토리에서 어떻게 넘겨받는지 predictor_factory.h와 맞춘다
-class GsharePredictor {
+class GsharePredictor : public BranchPredictor {
+public:
+    GsharePredictor(unsigned indexBits, unsigned historyBits); //historyBits : 최근 몇 개의 분기를 볼 건지 여부
+
+    bool predict(uint64_t pc) const override;
+    void update(uint64_t pc, bool taken) override;   // 카운터 갱신 + GHR 갱신
+    std::string name() const override;
+private:
+    size_t index(uint64_t pc) const;
+
+    std::vector<uint8_t> table_;
+    uint64_t             mask_;
+    uint64_t             ghr_;
+    uint64_t             historyMask_;   // GHR을 historyBits 비트로 자르는 mask
 };
+
+
