@@ -1,8 +1,7 @@
 #include "two_bit.h"
 #include "saturating_counter.h"
 #include <algorithm>
-// TODO: TwoBitPredictor 멤버 함수 정의 (W4 bpred.cpp에서 옮긴다) + name
-//   - 필요한 표준 헤더(std::min / std::max)는 이 파일에서 include한다
+
 TwoBitPredictor::TwoBitPredictor(unsigned indexBits)
     : table_(uint64_t(1)<<indexBits, WEAKLY_TAKEN), mask_(table_.size()-1) {
 }

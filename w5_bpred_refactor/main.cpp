@@ -40,9 +40,6 @@ struct Result {
     }
 };
 
-// TODO: trace 하나를 예측기 하나로 돌린다. W4의 simulateOneBit / simulateTwoBit / simulateGshare를 하나로 합친다
-//   - 예측기를 기반 클래스 참조(reference to base)로 받는다: 동적 바인딩(dynamic binding)
-//   - 결과 이름은 예측기에게 묻는다
 Result simulate(BranchPredictor& pred, const std::vector<BranchRecord>& trace) {
     Result r;
     for(const auto& rec : trace)
@@ -60,7 +57,7 @@ Result simulate(BranchPredictor& pred, const std::vector<BranchRecord>& trace) {
         pred.update(rec.pc, rec.taken);
     }
     r.name = pred.name();
-    return r;   // 임시 반환값
+    return r;
 }
 
 
