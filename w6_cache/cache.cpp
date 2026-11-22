@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
-
+#include <string>
 #include "util.h"
 
 // ─────────────────────────────────────────────────────────────
@@ -16,25 +16,36 @@ double Stats::missRate() const {
     return static_cast<double>(misses) / static_cast<double>(accesses);
 }
 
+static unsigned log2_pow2(unsigned n) {
+    unsigned logVal = 0;
+    while (n >>= 1) { // 비트를 오른쪽으로 1칸씩 밀면서 카운트
+        ++logVal;
+    }
+    return logVal;
+}
 
 // ─────────────────────────────────────────────────────────────
 // 생성자
+// sizeBytes : 캐시 크기(ex. 32KB), assoc : 연관 수 (ex. 4-way), blockBytes : 블록 크기(ex. 8B)
+// numSets : 세트수 (캐시 크기 / way수), offsetBits : 블록을 표현하는데 얼마나 쓰냐, indexBits : 하나의 way 안에 몇 개의 블록이 들어가느냐 or 몇번째 세트에 들어가있냐
 // ─────────────────────────────────────────────────────────────
-Cache::Cache([[maybe_unused]] uint64_t sizeBytes, [[maybe_unused]] uint64_t assoc,
-             [[maybe_unused]] uint64_t blockBytes) {
-    // TODO(2): 파라미터 검사와 예외, numSets/offsetBits/indexBits 계산 (tests: ./test ctor)
-    //   - 검사 (하나라도 걸리면 std::invalid_argument, 메시지에 어떤 값이 왜 틀렸는지)
-    //       sizeBytes, assoc, blockBytes가 모두 2의 거듭제곱인가 → is_pow2 (util.h)
-    //       sizeBytes가 assoc * blockBytes로 나눠지는가 (작으면 나눠지지 않는다)
-    //   - 계산
-    //       numSets_    = sizeBytes / (assoc * blockBytes)
-    //       offsetBits_ = log2(blockBytes), indexBits_ = log2(numSets_)
-    //       2의 거듭제곱의 log2 = "1을 몇 번 왼쪽으로 밀어야 그 값이 되는가" → 반복문 또는 오른쪽 시프트로
-    //       (<cmath>의 std::log2는 double을 돌려주므로 쓰지 않는다)
-    //   - lines_를 numSets_ * assoc_ 칸으로 만든다. Line의 기본값(valid = false)이 그대로 초기값이다
-    //   - 멤버 초기화 리스트를 쓸 거라면 cache.h의 선언 순서를 지킨다(-Wall이 -Wreorder로 알려 준다).
-    //     단, 검사는 본문에서 하므로 "검사 전에 계산해도 안전한 값"만 초기화 리스트에 둔다.
-    //   - 구현이 끝나면 [[maybe_unused]]와 이 TODO 주석을 지운다.
+Cache::Cache(uint64_t sizeBytes, uint64_t assoc, uint64_t blockBytes) {
+    sizeBytes_ = is_pow2(sizeBytes) ? sizeBytes
+        : throw std::invalid_argument("cache size must be a power of 2, got " + std::to_string(sizeBytes));
+    assoc_ = is_pow2(assoc) ? assoc
+        : throw std::invalid_argument("associativity must be a power of 2, got " + std::to_string(assoc));
+    blockBytes_ = is_pow2(blockBytes) ? blockBytes
+        : throw std::invalid_argument("block size must be a power of 2, got " + std::to_string(blockBytes));
+    numSets_ = (sizeBytes % (assoc * blockBytes) == 0) ? (sizeBytes / (assoc * blockBytes))
+        : throw std::invalid_argument("cache size " + std::to_string(sizeBytes)
+                                      + " is not a multiple of assoc * block = " + std::to_string(assoc)
+                                      + " * " + std::to_string(blockBytes)
+                                      + " = " + std::to_string(assoc * blockBytes));
+    offsetBits_ = log2_pow2(blockBytes);
+    indexBits_ = log2_pow2(numSets_);
+    lines_.assign(numSets_ * assoc, Line{});
+
+
 }
 
 
