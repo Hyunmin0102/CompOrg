@@ -1,0 +1,3 @@
+# 3번째 줄이 잘못된 trace (tests.cpp test_trace에서 오류 메시지의 줄 번호를 확인)
+R 0x10
+R 0x20 W

@@ -1,0 +1,11 @@
+# W6 sample trace: 256B, assoc 2, block 16 기준으로 set 0에 들어가는 블록만 쓴다
+#   A = 0x000, B = 0x080, C = 0x100, D = 0x180 (tests.cpp test_writeback 2번과 같은 시퀀스)
+W 0x000
+R 0x080
+
+R 0x100
+W 0x080   # B hit, dirty
+  R 0x180
+R 0x000
+W 0x000
+W 0x004   # A와 같은 블록
