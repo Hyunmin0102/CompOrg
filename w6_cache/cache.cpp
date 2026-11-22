@@ -16,7 +16,7 @@ double Stats::missRate() const {
     return static_cast<double>(misses) / static_cast<double>(accesses);
 }
 
-static unsigned log2_pow2(unsigned n) {
+static unsigned log2_pow2(uint64_t n) {
     unsigned logVal = 0;
     while (n >>= 1) { // 비트를 오른쪽으로 1칸씩 밀면서 카운트
         ++logVal;
@@ -52,21 +52,18 @@ Cache::Cache(uint64_t sizeBytes, uint64_t assoc, uint64_t blockBytes) {
 // ─────────────────────────────────────────────────────────────
 // 주소 분해
 // ─────────────────────────────────────────────────────────────
-uint64_t Cache::offsetOf([[maybe_unused]] uint64_t addr) const {
-    // TODO(3): 블록 안 위치 = 주소의 하위 offsetBits_ 비트 (tests: ./test addr)
-    //   - mask = (1을 offsetBits_만큼 민 값) - 1. 1은 64비트 정수로 시작한다 (W4 함정: 1 << n은 int 시프트)
-    return 0;
+uint64_t Cache::offsetOf(uint64_t addr) const {
+    uint64_t mask = (uint64_t{1} << offsetBits_) - 1;
+    return addr & mask;
 }
 
-uint64_t Cache::indexOf([[maybe_unused]] uint64_t addr) const {
-    // TODO(3): set 번호 = offset을 오른쪽으로 밀어 낸 뒤 하위 indexBits_ 비트
-    //   - 경계 조건: indexBits_ == 0 (fully associative, set이 하나)일 때 항상 0이 나오는가
-    return 0;
+uint64_t Cache::indexOf(uint64_t addr) const {
+    uint64_t mask = (uint64_t{1} << indexBits_) - 1;
+    return (addr >> offsetBits_) & mask;
 }
 
-uint64_t Cache::tagOf([[maybe_unused]] uint64_t addr) const {
-    // TODO(3): tag = offset과 index를 모두 밀어 낸 나머지 상위 비트
-    return 0;
+uint64_t Cache::tagOf(uint64_t addr) const {
+    return addr >> (indexBits_ + offsetBits_);
 }
 
 
