@@ -44,8 +44,6 @@ Cache::Cache(uint64_t sizeBytes, uint64_t assoc, uint64_t blockBytes) {
     offsetBits_ = log2_pow2(blockBytes);
     indexBits_ = log2_pow2(numSets_);
     lines_.assign(numSets_ * assoc, Line{});
-
-
 }
 
 
@@ -70,25 +68,30 @@ uint64_t Cache::tagOf(uint64_t addr) const {
 // ─────────────────────────────────────────────────────────────
 // 라인 찾기 / 교체 대상 고르기
 // ─────────────────────────────────────────────────────────────
-int Cache::findWay([[maybe_unused]] uint64_t set, [[maybe_unused]] uint64_t tag) const {
-    // TODO(4): set의 way 0..assoc_-1 중 valid이고 tag가 같은 라인을 찾는다 (tests: ./test v1)
-    //   - 라인 (set, way)는 lines_[set * assoc_ + way]
-    //   - 반복 변수 타입과 assoc_(uint64_t)의 비교에서 -Wsign-compare 경고가 나면 어느 쪽 타입을 맞출지 생각한다
-    //   - 없으면 NOT_FOUND
+int Cache::findWay(uint64_t set, uint64_t tag) const {
+    for (uint64_t way = 0; way < assoc_; ++way)
+    {
+        const Line& line = lines_[set * assoc_ + way];
+        if (line.valid && line.tag == tag)
+        {
+            return static_cast<int>(way);
+        }
+    }
     return NOT_FOUND;
 }
 
-int Cache::chooseVictim([[maybe_unused]] uint64_t set) const {
-    // TODO(5): LRU 교체 대상 (tests: ./test lru)
-    //   - set의 라인들은 lines_에서 연속된 assoc_칸이다 → 시작 반복자 begin() + set * assoc_, 끝 = 시작 + assoc_
-    //   - std::min_element(시작, 끝, 람다)로 lastUse가 가장 작은 라인을 찾는다
-    //     람다: [](const Line& a, const Line& b) { ... } — "a가 b보다 앞(더 작다)인가"를 돌려준다
-    //   - 돌려준 반복자 - 시작 = way 번호 (반복자끼리 빼면 거리가 나온다)
-    //   - invalid 라인이 있으면 그것을 먼저 골라야 한다.
-    //     따로 검사해도 되고, 람다의 비교 규칙에 valid를 넣어도 된다. lastUse 초기값(0)과
-    //     useClock_의 시작값을 어떻게 정하면 되는지도 생각해 볼 것
-    //   - v1(assoc = 1)에서는 way가 하나뿐이므로 항상 0이다. TODO(4) 단계에서는 임시로 0을 돌려줘도 된다
-    return 0;
+int Cache::chooseVictim(uint64_t set) const {
+    // 비교 순서: (1) invalid 라인이 먼저 (2) valid가 같으면 lastUse가 작은(오래된) 라인이 먼저
+    const auto first = lines_.begin() + set * assoc_;
+    const auto last  = first + assoc_;
+    const auto it = std::min_element(first, last, [](const Line& a, const Line& b) {
+        if (a.valid != b.valid)
+        {
+            return !a.valid;
+        }
+        return a.lastUse < b.lastUse;
+    });
+    return static_cast<int>(it - first);
 }
 
 void Cache::writebackToLower([[maybe_unused]] uint64_t blockAddr) {
@@ -101,24 +104,57 @@ void Cache::writebackToLower([[maybe_unused]] uint64_t blockAddr) {
 // ─────────────────────────────────────────────────────────────
 // access: 외부 인터페이스
 // ─────────────────────────────────────────────────────────────
-bool Cache::access([[maybe_unused]] uint64_t addr, [[maybe_unused]] bool isWrite) {
-    // TODO(4): hit/miss 판정 (v1: assoc = 1) (tests: ./test v1)
-    //   - 통계: accesses, reads/writes를 센다
-    //   - addr → set(indexOf), tag(tagOf) → findWay
-    //   - hit:  hits를 센다, true
-    //   - miss: misses를 센다, 채울 way(chooseVictim)에 valid = true, tag를 쓴다, false
-    //
-    // TODO(5): LRU 타임스탬프 (tests: ./test lru)
-    //   - 접근할 때마다 useClock_을 올리고, hit한 라인과 새로 채운 라인의 lastUse에 기록한다
-    //
-    // TODO(6): write-back + dirty bit (tests: ./test writeback)
-    //   - 쓰기(hit이든 miss든)는 그 라인의 dirty = true. 하위 레벨에는 아직 쓰지 않는다(write-back)
-    //   - miss에서 victim이 valid && dirty이면, 덮어쓰기 전에 writebackToLower(victim 블록의 시작 주소)
-    //     victim의 블록 주소는 victim의 tag와 지금 set 번호로 다시 만든다 (offset = 0)
-    //     → | tag | set | 0...0 | : 각 부분을 몇 비트씩 밀어야 하는가?
-    //   - 새로 채운 라인의 dirty는 이번 접근이 쓰기인지에 따라 정한다
-    //   - 구현이 끝나면 [[maybe_unused]]와 TODO 주석, 임시 return을 지운다.
-    return false;
+bool Cache::access(uint64_t addr, bool isWrite) {
+    ++stats_.accesses;
+    ++useClock_;
+    bool isHit = false;
+    if (isWrite)
+    {
+        ++stats_.writes;
+    }
+    else
+    {
+        ++stats_.reads;
+    }
+
+    const uint64_t set = indexOf(addr);
+    const uint64_t tag = tagOf(addr);
+    const int way = findWay(set, tag);
+
+    if (way == NOT_FOUND)
+    {
+        // miss: victim을 내보내고(dirty면 writeback) 새 블록으로 채운다
+        ++stats_.misses;
+        const int victimWay = chooseVictim(set);
+        Line& victim = lines_[set * assoc_ + victimWay];
+
+        // 덮어쓰기 전에 검사: victim.tag가 아직 쫓겨나는 블록의 tag다
+        if (victim.valid && victim.dirty)
+        {
+            const uint64_t victimAddress = (victim.tag << (indexBits_ + offsetBits_)) | (set << offsetBits_);
+            writebackToLower(victimAddress);
+        }
+
+        victim.valid   = true;
+        victim.tag     = tag;
+        victim.lastUse = useClock_;
+        victim.dirty   = isWrite;   // write-allocate: 쓰기 miss면 dirty, 읽기 miss면 clean
+    }
+    else
+    {
+        // hit: LRU 시각 갱신, 쓰기면 dirty (읽기 hit은 dirty를 건드리지 않는다)
+        ++stats_.hits;
+        Line& line = lines_[set * assoc_ + way];
+        line.lastUse = useClock_;
+        isHit = true;
+
+        if (isWrite)
+        {
+            line.dirty = true;
+        }
+    }
+
+    return isHit;
 }
 
 const Stats& Cache::stats() const {
