@@ -100,7 +100,9 @@ TODO가 남아 있는 동안에도 빌드는 경고 없이 된다. 해당 단계
 2. 행렬 trace: `./sim --trace=tests/col_128x128.txt --sweep > col.csv` 처럼 저장해 열이 쉼표로 잘 나뉘는지 확인한다.
 3. 캐시가 작아 어떤 연관도에서 생성자가 예외를 던질 때(예: `--size=64 --block=16`이면 assoc 8은 불가) 어떻게 처리했는지 여기에 적는다.
 
-   (여기에 쓴다)
+   **그 연관도 줄만 건너뛴다.** `Cache` 생성자의 `invalid_argument`를 연관도마다 잡아서, 이유를 stderr에
+   `skip assoc 8: cache size 64 is not a multiple of ...`처럼 쓰고 다음 연관도로 넘어간다.
+   stdout에는 헤더와 유효한 줄만 남으므로 `> col.csv`로 저장해도 CSV가 깨지지 않는다. 종료 코드는 0.
 
 ## 분석 과제 (TODO 8까지 끝난 뒤)
 
