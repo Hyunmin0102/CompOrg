@@ -114,7 +114,45 @@ TODO가 남아 있는 동안에도 빌드는 경고 없이 된다. 해당 단계
 
 ### 결과
 
-(여기에 붙여 넣는다)
+=== cache: size 32768 B, assoc 1, block 64 B ===
+trace: tests/col_128x128.txt
+accesses        16384
+  reads         16384
+  writes            0
+hits                0
+misses          16384
+writebacks          0
+miss rate      1.0000
+
+=== cache: size 32768 B, assoc 1, block 64 B ===
+trace: tests/row_128x128.txt
+accesses        16384
+  reads         16384
+  writes            0
+hits            15360
+misses           1024
+writebacks          0
+miss rate      0.0625
+
+=== cache: size 32768 B, assoc 1, block 64 B ===
+trace: tests/col_128x128_rw.txt
+accesses        32768
+  reads         16384
+  writes        16384
+hits            16384
+misses          16384
+writebacks      15872
+miss rate      0.5000
+
+=== cache: size 32768 B, assoc 1, block 64 B ===
+trace: tests/row_128x128_rw.txt
+accesses        32768
+  reads         16384
+  writes        16384
+hits            31744
+misses           1024
+writebacks        512
+miss rate      0.0312
 
 ### 분석
 
