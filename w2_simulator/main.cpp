@@ -409,14 +409,6 @@ static void run_tests() {
     test_memory();
     test_load();
     test_sum1to10();
-
-    // TODO: 개별 명령어 테스트. 작은 프로그램(vector)을 직접 만들어 확인한다.
-    //       - add / addi (음수 즉시값 포함)
-    //       - lw / sw 음수 offset: 예) sw $t0, -4($t1)
-    //       - beq 앞으로 가는 분기 / 뒤로 가는 분기 (음수 offset)
-    // TODO: 예외 테스트. 정렬 안 된 주소, 메모리 범위 밖, 알 수 없는 opcode에서 throw가 나는지
-    //       try/catch로 확인한다.
-    // TODO: $zero 불변식 테스트. addi $zero, $zero, 5 실행 후 reg(0) == 0
 }
 
 
