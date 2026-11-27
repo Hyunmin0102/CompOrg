@@ -96,3 +96,68 @@ tests/mixed.txt                 4000    60.10%    54.70%    98.03%
 - C++의 `^`는 거듭제곱이 아니라 XOR
 - `std::ws`는 이미 eof인 스트림에 failbit를 세운다 → 값 읽기의 fail 검사와 분리한다
 - 예외 종류: 호출자가 잘못 넘긴 값은 `invalid_argument`, 내부 불변식이 깨진 경우는 `logic_error`나 `assert`
+
+## 작업 노트 (원래 docs/plan_w4.md)
+
+### 완료 기준
+
+- `make run`이 tests/의 모든 trace에 대해 세 예측기의 정확도 비교 표를 출력한다.
+- `make top`이 예측기별 오예측 Top 10 PC를 출력한다.
+- w4_bpred/README.md의 확인 과제를 손으로 계산해 시뮬레이터 결과와 비교하고, "분석" 절을 채운다.
+- `make regress`(W1 디코더 assert, W2 sum1to10, W3 stall·CPI)가 계속 통과한다.
+- 끝나면 `git tag w4`
+
+### 예측기
+
+| 예측기 | 칸의 내용 | 인덱스 |
+|---|---|---|
+| 1-bit | 마지막 결과 (0/1) | `(pc >> 2) & mask` |
+| 2-bit | 포화 카운터 0..3 (2 이상이면 taken 예측) | `(pc >> 2) & mask` |
+| gshare | 포화 카운터 0..3 + 전역 히스토리 레지스터(GHR) | `((pc >> 2) ^ ghr) & mask` |
+
+- 예측 테이블: `std::vector<uint8_t>`, 크기 2^indexBits
+- 2-bit 갱신: `std::min` / `std::max`로 포화
+- 오예측: PC별로 `std::unordered_map`에 모은 뒤 vector로 옮겨 람다 + `std::sort`로 Top 10
+
+### 진행 상황 (2026-11-11 기준 스냅샷, 진행하면서 갱신)
+
+코드 쪽 완료 기준(`make run`, `make top`, `make regress`)은 모두 충족. 남은 것은 README와 태그.
+
+완료 (main에 커밋됨, 마지막 커밋 897037b)
+- `parseTraceLine`: `std::hex` → `std::dec`으로 읽기, `fail()` 검사, 그 뒤 따로 `std::ws` + `eof()`로 남은 글자 검사
+- `OneBitPredictor` 전체: 초기값 1(taken). 이유: 루프 back edge는 마지막 한 번 빼고 taken
+- `simulateOneBit`: 예측 → 비교·집계 → 틀렸을 때만 `mispredByPc[pc]` 증가 → 분기마다 update
+- `TwoBitPredictor` 전체
+  - 카운터 상수는 모두 `int`: `COUNTER_MIN = 0`, `COUNTER_MAX = 3`, `WEAKLY_TAKEN = 2`, `TAKEN_THRESHOLD = 2`
+    (`std::min`/`std::max`에서 `int`와 `uint8_t`가 엇갈리는 컴파일 에러를 피하려고 바꿈)
+  - 초기값은 `STRONGLY_TAKEN`(3)에서 `WEAKLY_TAKEN`(2)으로 바꿨다
+  - `update`: `uint8_t& counter = table_.at(index(pc))`로 칸에 직접 참조를 건다(`index` 한 번). `int`로 계산한 뒤 `static_cast<uint8_t>`로 대입
+- `simulateTwoBit`
+- `GsharePredictor` 전체 + `simulateGshare`
+  - 초깃값: 칸은 `WEAKLY_TAKEN`(2-bit와 같은 조건), `ghr_`은 0("최근 분기가 모두 not-taken", historyBits번 분기 뒤 영향 사라짐)
+  - `update` 순서: **카운터 먼저, GHR 나중**. GHR을 먼저 바꾸면 predict 때 본 칸과 다른 칸을 갱신한다
+  - GHR 갱신: `((ghr_ << 1) | taken) & historyMask_`. 괄호 없이 `ghr_ << 1 + taken`은 `ghr_ << (1 + taken)`(우선순위 함정)
+- `topMispredicted`: 반복자 범위 생성자로 vector 생성 → 람다 + `std::sort`(오예측 수 내림차순, 동점은 PC) → `resize(std::min(k, vec.size()))`
+- `printTopMispredicted`: `copyfmt`로 서식 저장·복원, PC만 `std::hex`, 오예측이 없으면 `(none)`
+- README "결과" 절에 `make run` 출력 붙여 넣음
+
+남은 일 (진도를 따라잡은 뒤, 또는 마지막 buffer 주에)
+- README 확인 과제 손계산 → 시뮬레이터 결과와 비교 → "분석" 절 쓰기
+- README 확인 과제 맨 위의 초기값 칸을 채운다
+- 2-bit 생성자 주석 정리: 아직 "이유는 구현 이후 생각해보겠음"으로 남아 있다. alternate와 always_not_taken에서 초기값이 3, 2, 1일 때를 손계산해 보고 고친다
+- 2-bit 생성자 주석의 N은 "주기"인데, README·gen_trace의 N은 "taken 횟수"다. 기호를 맞춘다. (지금 생성자 주석에는 N이 없음. 해결됐다면 이 줄을 지운다)
+- 위가 끝나면 `git tag w4`
+
+### 리뷰 방식 (이번 주 추가 규칙)
+
+- README 확인 과제의 정답 수치(정확도, 오예측 수)는 알려 주지 않는다. 내가 손계산한 뒤 시뮬레이터와 비교한다.
+- 내가 코드를 보여 주면 직접 컴파일·실행해 보고 리뷰한다.
+- 리뷰 때 반복된 스타일 지적
+  - `if (` / `for (` / `switch (`: 키워드 뒤에 공백
+  - 지역 변수는 camelCase, 상수는 UPPER_SNAKE_CASE
+  - `x += 1` 대신 `++x`, 연산자 양옆 공백
+  - 구현이 끝난 함수는 TODO 주석, `(void)x;` 임시 줄, 임시 return을 지운다
+
+### 이번 주에 쓰지 않는 것
+
+추상 클래스, 가상 함수, 스마트 포인터, 템플릿 작성(W5 이후). 헤더/소스 분리와 Makefile 확장도 W5에서 한다.
