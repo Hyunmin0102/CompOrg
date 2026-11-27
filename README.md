@@ -21,7 +21,7 @@ ETH Zürich Onur Mutlu 교수님의 *Digital Design and Computer Architecture* (
 | `w6_cache` | W6 | 캐시 시뮬레이터 (direct-mapped → set-associative, LRU, write-back/write-allocate, 연관도 sweep) | 완료 |
 | (예정) | W7 | L1/L2 계층 + 프리페처 | 예정 |
 
-각 폴더의 README.md에 과제 설명과 실행 결과가 있습니다.
+W2, W4–W6 폴더의 README.md에 과제 설명과 실행 결과가 있습니다.
 
 ## 빌드
 
