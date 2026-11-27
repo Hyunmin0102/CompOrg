@@ -72,3 +72,27 @@ tests/always_not_taken.txt        20    95.00%    95.00%    95.00%
 tests/correlated.txt            2000    48.90%    50.50%    73.35%
 tests/mixed.txt                 4000    60.10%    54.70%    98.03%
 ```
+
+## 이 과제로 배우는 C++ 문법
+
+| 문법·개념 | 과제에서 쓰이는 곳 |
+|---|---|
+| std::istringstream, 입력 조작자 std::hex / std::dec / std::ws | trace 한 줄 파싱 |
+| 스트림 상태 (fail, eof) | 잘못된 줄 검출 |
+| 멤버 초기화 리스트, 선언 순서 = 초기화 순서 | 예측기 생성자 (table_ → mask_) |
+| std::vector의 (개수, 초기값) 생성자 vs {} (initializer_list) | 예측 테이블 |
+| 비트 연산 (>>, &, ^, <<, \|), 64비트 시프트 | 인덱스, mask, GHR |
+| 정수 승격(integral promotion), static_cast | 포화 카운터와 std::min / std::max |
+| constexpr 상수 | 카운터 상한·하한·경계값·초기값 |
+| 범위 기반 for, const auto& | simulate 루프 |
+| std::unordered_map::operator[] | PC별 오예측 수 |
+| 람다(lambda), std::sort | 오예측 Top 10 정렬 |
+| 구조적 바인딩(structured binding) | `for (const auto& [pc, cnt] : ...)` |
+
+## 지금까지 걸린 함정
+
+- vector를 `{}`로 만들면 initializer_list 생성자가 선택된다 → (개수, 초기값)은 `()`
+- `1 << n`은 int 시프트 → 64비트 1에서 시작한다
+- C++의 `^`는 거듭제곱이 아니라 XOR
+- `std::ws`는 이미 eof인 스트림에 failbit를 세운다 → 값 읽기의 fail 검사와 분리한다
+- 예외 종류: 호출자가 잘못 넘긴 값은 `invalid_argument`, 내부 불변식이 깨진 경우는 `logic_error`나 `assert`
