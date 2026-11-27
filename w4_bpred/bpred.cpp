@@ -145,7 +145,6 @@ private:
 };
 
 // table 내부 값을 2(weakly taken)으로 정한 이유 : always taken이든 always not taken이든 가장 정확도가 높다. 
-// 다른 이유도 있겠지만 일반적으로 weakly taken으로 정하므로 일단 2로 정하고 이유는 구현 이후 생각해보겠음.
 TwoBitPredictor::TwoBitPredictor(unsigned indexBits)
     : table_(uint64_t(1)<<indexBits, WEAKLY_TAKEN), mask_(table_.size()-1) {
 }

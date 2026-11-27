@@ -41,8 +41,6 @@ make clean
 ./tracegen col 128 128 4 rw > my_trace.txt   # <row|col> <rows> <cols> <elemBytes> [r|w|rw] [base]
 ```
 
-TODO가 남아 있는 동안에도 빌드는 경고 없이 된다. 해당 단계의 테스트는 assert에서 멈춘다.
-
 ## TODO 구현 순서와 완료 확인
 
 각 TODO의 위치는 파일에서 `TODO(번호)`로 찾는다. 한 단계가 끝나면 그 단계와 **앞 단계 테스트가 모두 통과**해야 다음으로 간다.
@@ -104,16 +102,11 @@ TODO가 남아 있는 동안에도 빌드는 경고 없이 된다. 해당 단계
    `skip assoc 8: cache size 64 is not a multiple of ...`처럼 쓰고 다음 연관도로 넘어간다.
    stdout에는 헤더와 유효한 줄만 남으므로 `> col.csv`로 저장해도 CSV가 깨지지 않는다. 종료 코드는 0.
 
-## 분석 과제 (TODO 8까지 끝난 뒤)
+## 결과
 
-1. `row_128x128.txt`와 `col_128x128.txt`를 기본 캐시(32KB, block 64)로 돌려 miss rate를 비교한다.
-   행 우선의 miss rate를 실행 전에 손으로 예측해 본다 (블록 하나에 원소가 몇 개 들어가는가?).
-2. 열 우선에서 연관도를 1 → 8로 올리면 miss rate는 어떻게 바뀌는가? 행 간격(row stride = 512B)과 set 수로 설명한다.
-3. `_rw` trace에서 writebacks는 몇 번인가? 행 우선과 열 우선에서 왜 같거나 다른가?
-4. block 크기를 16 / 64 / 256으로 바꾸면 행 우선과 열 우선은 각각 어떻게 반응하는가?
+기본 캐시(32KB, direct-mapped, block 64B)로 행렬 순회 trace 4개를 돌린 결과.
 
-### 결과
-
+```
 === cache: size 32768 B, assoc 1, block 64 B ===
 trace: tests/col_128x128.txt
 accesses        16384
@@ -153,15 +146,11 @@ hits            31744
 misses           1024
 writebacks        512
 miss rate      0.0312
-
-### 분석
-
-(여기에 쓴다)
+```
 
 ## 완료 기준
 
-- [ ] `make`가 경고 없이 통과한다 (`-std=c++17 -Wall -Wextra -g -O0`)
-- [ ] `make check`가 `all tests passed`로 끝난다
+- [x] `make`가 경고 없이 통과한다 (`-std=c++17 -Wall -Wextra -g -O0`)
+- [x] `make check`가 `all tests passed`로 끝난다
 - [ ] TODO(7), TODO(8) 완료 확인 항목을 모두 해 본다
-- [ ] 분석 과제 1–4
 - [ ] 구현이 끝난 함수에서 TODO 주석, `[[maybe_unused]]`, 임시 return을 지운다
