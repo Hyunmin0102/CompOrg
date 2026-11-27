@@ -153,4 +153,3 @@ miss rate      0.0312
 - [x] `make`가 경고 없이 통과한다 (`-std=c++17 -Wall -Wextra -g -O0`)
 - [x] `make check`가 `all tests passed`로 끝난다
 - [ ] TODO(7), TODO(8) 완료 확인 항목을 모두 해 본다
-- [ ] 구현이 끝난 함수에서 TODO 주석, `[[maybe_unused]]`, 임시 return을 지운다
