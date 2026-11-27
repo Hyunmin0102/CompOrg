@@ -5,7 +5,7 @@ ETH Zürich Onur Mutlu 교수님의 *Digital Design and Computer Architecture* (
 매주 배운 개념을 C++17로 직접 구현합니다.
 
 스켈레톤 코드·테스트·trace 생성기는 Claude Code로 만들고, 핵심 로직은 직접 구현했습니다.
-각 폴더 README의 파일 표에서 "완성됨"(주어진 부분)과 "내가 구현"을 구분해 두었습니다.
+W5·W6 README의 파일 표 "담당" 열에 주어진 부분("완성됨")과 직접 구현한 부분("내가 구현", "TODO")을 구분해 두었습니다.
 
 - 기간: 2026.09.30 – 11.30 (W0–W8)
 - 강의: [DDCA Spring 2025](https://safari.ethz.ch/ddca/spring2025/doku.php?id=schedule)
